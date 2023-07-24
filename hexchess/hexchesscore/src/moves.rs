@@ -29,8 +29,7 @@ impl RookMoves {
         /// no other pieces. These moves spiral out from the rook, so closer hexagons
         /// are returned earlier in the result
         // loop through arms
-        let arm_top: Vec<Hexagon> = (position.file + 1
-            ..=get_rank_length(position.rank).unwrap())
+        let arm_top: Vec<Hexagon> = (position.file + 1..=get_rank_length(position.rank).unwrap())
             .rev()
             .map(|x| Hexagon {
                 rank: position.rank,
@@ -45,9 +44,12 @@ impl RookMoves {
             })
             .collect();
 
-        let arm_bottom_left: Vec<Hexagon> = zip((1..position.rank), (1..position.file))
-            .map(|(x, y)| Hexagon { rank: x, file: y })
-            .collect();
+        let arm_bottom_left: Vec<Hexagon> = zip(
+            (get_rank_length(position.file).unwrap() - position.file)..position.rank,
+            1..position.file,
+        )
+        .map(|(x, y)| Hexagon { rank: x, file: y })
+        .collect();
 
         let arm_bottom: Vec<Hexagon> = (1..position.file)
             .map(|x| Hexagon {
@@ -56,10 +58,12 @@ impl RookMoves {
             })
             .collect();
 
-        let arm_bottom_right: Vec<Hexagon> =
-            zip((position.rank + 1..=11).rev(), (1..position.file))
-                .map(|(x, y)| Hexagon { rank: x, file: y })
-                .collect();
+        let arm_bottom_right: Vec<Hexagon> = zip(
+            (position.rank + 1..=get_rank_length(position.file).unwrap()).rev(),
+            1..position.file,
+        )
+        .map(|(x, y)| Hexagon { rank: x, file: y })
+        .collect();
 
         let arm_top_right: Vec<Hexagon> = (position.rank + 1..=11)
             .rev()

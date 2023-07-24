@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum PieceType {
@@ -57,7 +58,7 @@ pub fn rank_int_to_char(rank: u8) -> Option<char> {
 }
 
 
-#[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd)]
+#[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Hexagon {
     pub rank: u8,
     pub file: u8,

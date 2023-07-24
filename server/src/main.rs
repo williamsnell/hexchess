@@ -28,6 +28,7 @@ fn handle_connection(mut stream: TcpStream) {
         "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
         "GET /draw_hexagon.js HTTP/1.1" => ("HTTP/1.1 200 OK", "draw_hexagon.js"),
         "GET /hex_frontend_funcs.js HTTP/1.1" => ("HTTP/1.1 200 OK", "hex_frontend_funcs.js"),
+        "GET /moves.json HTTP/1.1" => ("HTTP/1.1 200 OK", "moves.json"),
         _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
     };
     

@@ -1,15 +1,11 @@
-use crate::hexchesscore::*;
+pub use crate::hexchesscore::*;
 use std::collections::HashMap;
 
 pub mod hexchesscore;
-mod moves;
+pub mod moves;
 
 #[cfg(test)]
 mod tests {
-
-    #[cfg(test)]
-    use pretty_assertions::{assert_eq, assert_ne};
-
     use super::*;
 
     fn setup_default_board() -> Board {
@@ -76,6 +72,8 @@ mod tests {
         let mut output_moves: Vec<Hexagon> = moves::RookMoves::new(starting_position).collect();
         
         assert!(eq_lists_inplace(&mut output_moves, &mut valid_moves));
+
+
 
         // [Hexagon::new(square) for square in valid_moves];
     }

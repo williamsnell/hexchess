@@ -52,8 +52,8 @@ function calc_row_position(row, column, canvas, hex_size) {
 }
 
 function get_hexagon_position(rank, file, canvas, hex_size) {
-  var x = calc_column_position(rank, hex_size, canvas);
-  var y = calc_row_position(file, rank, canvas, hex_size);
+  var x = calc_column_position(rank - 1, hex_size, canvas);
+  var y = calc_row_position(file - 1, rank - 1, canvas, hex_size);
   return [x, y];
 }
 

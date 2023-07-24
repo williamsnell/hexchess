@@ -33,15 +33,27 @@ function draw_board() {
 
 draw_board();
 
+function draw_dot(rank, file) {
+  [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
+  
+  ctx.beginPath();
+  ctx.fillStyle = "#000000";
+  ctx.lineStyle = "#000000";
+  ctx.lineWidth = 0;
+  ctx.arc(x, y, hex_size * 0.3, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function parse_moves(text) {
+  var payload = JSON.parse(text);
+  console.log(payload);
+  var moves = payload["moves"];
+  moves.forEach((val) => draw_dot(val["rank"], val["file"]));
+  return text;
+}
+
+// Draw all positions from a file
+fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
+
 var x, y;
-[x, y] = get_hexagon_position(10, 5, canvas, hex_size);
-
-console.log(x, y);
-
-ctx.beginPath();
-ctx.fillStyle = "#000000";
-ctx.lineStyle = "#000000";
-ctx.lineWidth = 0;
-ctx.arc(x, y, hex_size * 0.3, 0, 2 * Math.PI);
-ctx.fill();
-ctx.stroke();
