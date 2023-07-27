@@ -1,4 +1,5 @@
 const vertical_hexagons_per_column = [6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6];
+const files = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "l"];
 
 function deg2rad(x) {
   return x * Math.PI / 180;
@@ -52,10 +53,10 @@ function calc_row_position(row, column, canvas, hex_size) {
 }
 
 function get_hexagon_position(rank, file, canvas, hex_size) {
-  var x = calc_column_position(rank - 1, hex_size, canvas);
-  var y = calc_row_position(file - 1, rank - 1, canvas, hex_size);
+  var x = calc_column_position(rank, hex_size, canvas);
+  var y = calc_row_position(file, rank, canvas, hex_size);
   return [x, y];
 }
 
 export { deg2rad, draw_hexagon, calc_hex_xsize, calc_hex_ysize, calc_hex_x_offset, 
-  get_centre_of_hex_structure, calc_column_position, get_hexagon_position, vertical_hexagons_per_column};
+  get_centre_of_hex_structure, calc_column_position, get_hexagon_position, vertical_hexagons_per_column, files};

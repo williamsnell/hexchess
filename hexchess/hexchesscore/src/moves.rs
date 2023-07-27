@@ -1,21 +1,48 @@
-use std::iter::zip;
+use std::{
+    cmp::{max, min},
+    iter::zip,
+};
 
 use crate::hexchesscore::Hexagon;
 
 pub fn get_rank_length(rank: u8) -> Option<u8> {
     match rank {
-        1 => Some(6),
-        2 => Some(7),
-        3 => Some(8),
-        4 => Some(9),
-        5 => Some(10),
-        6 => Some(11),
-        7 => Some(10),
-        8 => Some(9),
-        9 => Some(8),
-        10 => Some(7),
-        11 => Some(6),
+        0 => Some(6),
+        1 => Some(7),
+        2 => Some(8),
+        3 => Some(9),
+        4 => Some(10),
+        5 => Some(11),
+        6 => Some(10),
+        7 => Some(9),
+        8 => Some(8),
+        9 => Some(7),
+        10 => Some(6),
         _ => None,
+    }
+}
+
+pub fn chess_to_axial_coords(hexagon: &Hexagon) -> (u8, u8) {
+    let q: u8 = hexagon.rank;
+    let r: u8 = hexagon.file + hexagon.rank + 6
+        - get_rank_length(hexagon.rank).unwrap()
+        - (if hexagon.rank < 6 {
+            0
+        } else {
+            hexagon.rank - 5
+        });
+    (q, r)
+}
+
+pub fn axial_to_chess_coords(q: u8, r: u8) -> Hexagon {
+    println!("=> q: {:?}, r: {:?}", q, r);
+
+    let rank = q;
+    let file = r + get_rank_length(q).unwrap() + (if rank < 6 { 0 } else { rank - 5 }) - rank - 6;
+    println!("=> rank: {:?}, file: {:?}", rank, file);
+    Hexagon {
+        rank: rank,
+        file: file,
     }
 }
 
@@ -25,11 +52,13 @@ pub struct RookMoves {
 
 impl RookMoves {
     pub fn new(position: Hexagon) -> RookMoves {
-        /// Get the moves a rook could make, from the current position, assuming
-        /// no other pieces. These moves spiral out from the rook, so closer hexagons
-        /// are returned earlier in the result
+        // Get the moves a rook could make, from the current position, assuming
+        // no other pieces. These moves spiral out from the rook, so closer hexagons
+        // are returned earlier in the result
         // loop through arms
-        let arm_top: Vec<Hexagon> = (position.file + 1..=get_rank_length(position.rank).unwrap())
+        let (q, r) = chess_to_axial_coords(&position);
+        println!("q: {:?}, r: {:?}", q, r);
+        let arm_top: Vec<Hexagon> = (position.file + 1..get_rank_length(position.rank).unwrap())
             .rev()
             .map(|x| Hexagon {
                 rank: position.rank,
@@ -37,50 +66,36 @@ impl RookMoves {
             })
             .collect();
 
-        let arm_top_left: Vec<Hexagon> = (1..position.rank)
-            .map(|x| Hexagon {
-                rank: x,
-                file: position.file,
-            })
-            .collect();
+        let arm_top_left: Vec<Hexagon> = (0..q).map(|x| axial_to_chess_coords(x, r)).collect();
 
-        let arm_bottom_left: Vec<Hexagon> = zip(
-            (get_rank_length(position.file).unwrap() - position.file)..position.rank,
-            1..position.file,
-        )
-        .map(|(x, y)| Hexagon { rank: x, file: y })
-        .collect();
+        // let arm_bottom_left: Vec<Hexagon> = (0..q)
+        //     .map(|x| axial_to_chess_coords(x, x + r - q))
+        //     .collect();
 
-        let arm_bottom: Vec<Hexagon> = (1..position.file)
-            .map(|x| Hexagon {
-                rank: position.rank,
-                file: x,
-            })
-            .collect();
+        // let arm_bottom: Vec<Hexagon> = (0..position.file)
+        //     .map(|x| Hexagon {
+        //         rank: position.rank,
+        //         file: x,
+        //     })
+        //     .collect();
 
-        let arm_bottom_right: Vec<Hexagon> = zip(
-            (position.rank + 1..=get_rank_length(position.file).unwrap()).rev(),
-            1..position.file,
-        )
-        .map(|(x, y)| Hexagon { rank: x, file: y })
-        .collect();
+        // let arm_bottom_right: Vec<Hexagon> = (q..=get_rank_length(q - r).unwrap())
+        //     .rev()
+        //     .map(|x| axial_to_chess_coords(x, r))
+        //     .collect();
 
-        let arm_top_right: Vec<Hexagon> = (position.rank + 1..=11)
-            .rev()
-            .map(|x| Hexagon {
-                rank: x,
-                file: position.file,
-            })
-            .collect();
+        // let arm_top_right: Vec<Hexagon> = (q + 1..get_rank_length(q - 1).unwrap())
+        //     .rev()
+        //     .map(|x| axial_to_chess_coords(x, x + r - q)).collect();
 
         RookMoves {
             move_list: vec![
                 arm_top,
                 arm_top_left,
-                arm_bottom_left,
-                arm_bottom,
-                arm_bottom_right,
-                arm_top_right,
+                // arm_bottom_left,
+                // arm_bottom,
+                // arm_bottom_right,
+                // arm_top_right,
             ],
         }
     }
