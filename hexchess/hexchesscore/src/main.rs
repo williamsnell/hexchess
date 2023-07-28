@@ -5,7 +5,7 @@ use std::io::Write;
 
 fn main() {
     let rook_moves: Vec<Hexagon> =
-        hexchesscore::moves::RookMoves::new(Hexagon::new("L5").unwrap()).collect();
+        hexchesscore::moves::RookMoves::new(Hexagon::new("A6").unwrap()).collect();
     let moves_json = serde_json::to_string(&rook_moves).unwrap();
     let json = format!("{{\"moves\": {moves_json}}}");
     let mut f = File::create("../../server/moves.json").unwrap();

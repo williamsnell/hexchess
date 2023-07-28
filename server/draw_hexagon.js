@@ -38,12 +38,12 @@ function label_hexes(context, canvas, hex_size) {
       // var q = i;
       var q = i;
       var r = j + i - (vertical_hexagons_per_column[i] - 6) + (i < 6 ? 0 : 5 - i);
-      // var s = q - r;
+      var s = q - r + 5;
       context.fillText(q, x - hex_size/4, y - hex_size / 2);
       context.fillStyle = "#F0F0F0";
       context.fillText(r, x + hex_size / 3, y + hex_size * 0.5);
-      // context.fillStyle = "#F0F000";
-      // context.fillText(s, x - hex_size * 0.9, y + hex_size /3);
+      context.fillStyle = "#F0F000";
+      context.fillText(s, x - hex_size * 0.9, y + hex_size /3);
     }
   }
 }
