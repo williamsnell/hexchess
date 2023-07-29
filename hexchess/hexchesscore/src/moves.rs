@@ -98,21 +98,25 @@ impl RookMoves {
             .map(|x| axial_to_chess_coords(if q > s { calc_q(r, x) } else { x }, r))
             .collect();
 
+
+        // we use q or r, whichever is smaller
+        // we iterate from 0 up to min(q, r)
+        // we hold s constant
         let arm_bottom_left: Vec<Hexagon> = (0..min(r, q))
             .map(|x| {
                 axial_to_chess_coords(
-                    if s > r { calc_q(x, s) } else { x },
-                    if s < r { x } else { calc_r(x, r) },
+                    if q > r { calc_q(x, s) } else { x },
+                    if q > r { x } else { calc_r(x, s) },
                 )
             })
             .collect();
 
-        let arm_top_right: Vec<Hexagon> = (min(r, q) + 1..get_rank_length(r).unwrap())
+        let arm_top_right: Vec<Hexagon> = (min(r, q) + 1..get_rank_length(s).unwrap())
             .rev()
             .map(|x| {
                 axial_to_chess_coords(
-                    if s > r { calc_q(x, s) } else { x },
-                    if s > r { x } else { calc_r(x, r) },
+                    if q > r { calc_q(x, s) } else { x },
+                    if q > r { x } else { calc_r(x, s) },
                 )
             })
             .collect();
