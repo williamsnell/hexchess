@@ -5,13 +5,21 @@ function deg2rad(x) {
   return x * Math.PI / 180;
 }
 
+export function get_polygon_points(size, x, y, number_of_sides) {
+  var points = [];
+  for (var i = 1; i <= number_of_sides; i += 1) {
+    points.push({"x": x + size * Math.cos(i * 2 * Math.PI / number_of_sides), "y": y + size * Math.sin(i * 2 * Math.PI / number_of_sides)});
+  }
+  return points;
+}
+
 function draw_polygon(size, x, y, number_of_sides, colour = "#000000", context) {
   context.beginPath();
-  context.moveTo(x + size, y);
+  // context.moveTo(x + size, y);
 
-  for (var i = 1; i <= number_of_sides; i += 1) {
-    context.lineTo(x + size * Math.cos(i * 2 * Math.PI / number_of_sides), y + size * Math.sin(i * 2 * Math.PI / number_of_sides));
-  }
+  var points = get_polygon_points(size, x, y, number_of_sides);
+
+  points.forEach((val) => context.lineTo(val.x, val.y));
 
   context.strokeStyle = "#e0c6a1";
   context.fillStyle = colour;
@@ -40,11 +48,21 @@ function get_centre_of_hex_structure(number_of_hexagons) {
   return (number_of_hexagons / 2 - 0.5);
 }
 
-function calc_column_position(column, hex_size, canvas) {
+function calc_column_x_position(column, hex_size, canvas) {
   var x_start = canvas.width / 2 - get_centre_of_hex_structure(11) * calc_hex_x_offset(hex_size);
   // Calculate the x-offset of a given column
   return x_start + column * calc_hex_x_offset(hex_size);
 }
+
+export function calc_column_y_positions(number_of_hexagons, y_center, size) {
+  var y2 = get_centre_of_hex_structure(number_of_hexagons) * calc_hex_ysize(size) + y_center;
+  var y = [];
+  for (var i = 0; i < number_of_hexagons; i += 1) {
+    y.push(size * i * (2 * Math.sin(deg2rad(120))) + y2);
+  }
+  return y;
+}
+
 
 function calc_row_position(row, column, canvas, hex_size) {
   var number_of_vertical_hexes = vertical_hexagons_per_column[column];
@@ -53,10 +71,32 @@ function calc_row_position(row, column, canvas, hex_size) {
 }
 
 function get_hexagon_position(rank, file, canvas, hex_size) {
-  var x = calc_column_position(rank, hex_size, canvas);
+  var x = calc_column_x_position(rank, hex_size, canvas);
   var y = calc_row_position(file, rank, canvas, hex_size);
   return [x, y];
 }
 
-export { deg2rad, draw_hexagon, calc_hex_xsize, calc_hex_ysize, calc_hex_x_offset, 
-  get_centre_of_hex_structure, calc_column_position, get_hexagon_position, vertical_hexagons_per_column, files};
+function isInsidePolygon(polygon, mouseX, mouseY) {
+  var c = false;
+
+  for (let i = 1, j = 0; i < polygon.length; i++, j++) {
+    const ix = polygon[i].x;
+    const iy = polygon[i].y;
+    const jx = polygon[j].x;
+    const jy = polygon[j].y;
+    const iySide = (iy > mouseY);
+    const jySide = (jy > mouseY);
+
+    if (iySide != jySide) {
+      const intersectX = (jx - ix) * (mouseY - iy) / (jy - iy) + ix;
+      if (mouseX < intersectX)
+        c = !c;
+    }
+  }
+  return c;
+}
+
+export {
+  deg2rad, draw_hexagon, calc_hex_xsize, calc_hex_ysize, calc_hex_x_offset,
+  get_centre_of_hex_structure, calc_column_x_position, get_hexagon_position, vertical_hexagons_per_column, files, isInsidePolygon
+};

@@ -1,30 +1,37 @@
-import { deg2rad, draw_hexagon, calc_hex_ysize, get_centre_of_hex_structure, 
-  calc_column_position, vertical_hexagons_per_column, get_hexagon_position, files } from "./hex_frontend_funcs.js";
+import { draw_hexagon, 
+  calc_column_x_position, calc_column_y_positions,  vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points } from "./hex_frontend_funcs.js";
 
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
 
-function draw_hexagon_column(number_of_hexagons, x, y_center, size) {
-  var y2 = get_centre_of_hex_structure(number_of_hexagons) * calc_hex_ysize(size) + y_center;
-
+function get_hex_color(i, number_of_hexagons) {
   var colour;
-
-  for (var i = 0; i < number_of_hexagons; i += 1) {
-    if ((i + number_of_hexagons) % 3 == 0) {
-      colour = "#ce946d";
-    } else if ((i + number_of_hexagons) % 3 == 1) {
-      colour = "#cec46d";
-    } else if ((i + number_of_hexagons) % 3 == 2) {
-      colour = "#ce6d77";
-    }
-    draw_hexagon(size, x, size * i * (2 * Math.sin(deg2rad(120))) + y2, colour, ctx);
+  if ((i + number_of_hexagons) % 3 == 0) {
+    colour = "#ce946d";
+  } else if ((i + number_of_hexagons) % 3 == 1) {
+    colour = "#cec46d";
+  } else if ((i + number_of_hexagons) % 3 == 2) {
+    colour = "#ce6d77";
   }
+  return colour;
+}
+
+function draw_hexagon_column(number_of_hexagons, x, y_center, size) {
+  var y_positions = calc_column_y_positions(number_of_hexagons, y_center, size);
+  y_positions.forEach((val, index) => draw_hexagon(size, x, val, get_hex_color(index, number_of_hexagons), ctx));
+  return y_positions;
 }
 
 var hex_size = canvas.width * 0.05;
 
 function draw_hex_callback(element, index) {
-  draw_hexagon_column(element, calc_column_position(index, hex_size, canvas), canvas.height * 0.5, hex_size);
+  var x_positions = Array(element).fill([calc_column_x_position(index, hex_size, canvas)]).flat();
+  var y_positions = draw_hexagon_column(element, x_positions[0], canvas.height * 0.5, hex_size);
+  var out = [];
+  for (let i = 0; i < x_positions.length; i++) {
+    out.push({"x": x_positions[i], "y": y_positions[i]});
+  }
+  return out;
 }
 
 function label_hexes(context, canvas, hex_size) {
@@ -49,10 +56,21 @@ function label_hexes(context, canvas, hex_size) {
 }
 
 function draw_board() {
-  vertical_hexagons_per_column.forEach(draw_hex_callback);
+  var positions = [];
+  for (let i = 0; i < vertical_hexagons_per_column.length; i++) {
+    positions.push(draw_hex_callback(vertical_hexagons_per_column[i], i));
+  }
+  return positions.flat();
 }
 
-draw_board();
+const hex_positions = draw_board();
+
+var polygon_points = [];
+for (let i = 0; i < hex_positions.length; i++) {
+  var hex_pos = hex_positions[i];
+  polygon_points.push(get_polygon_points(hex_size, hex_pos.x, hex_pos.y, 6));
+}
+
 
 function draw_dot(rank, file) {
   var x, y;
@@ -79,5 +97,22 @@ function parse_moves(text) {
 fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
 
 label_hexes(ctx, canvas, hex_size);
+
+function on_mouse_move(event) {
+  const mouse_x = event.clientX;
+  const mouse_y = event.clientY;
+
+  draw_board();
+  
+  for (let i = 0; i < polygon_points.length; i++) {
+    if (isInsidePolygon(polygon_points[i], mouse_x, mouse_y)) {
+      console.log(polygon_points[i]);
+      draw_hexagon(hex_size, hex_positions[i].x, hex_positions[i].y, "#000000", ctx);
+      break;
+    }
+  }
+}
+
+canvas.addEventListener("click", on_mouse_move);
 
 

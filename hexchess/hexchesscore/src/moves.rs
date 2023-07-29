@@ -98,7 +98,6 @@ impl RookMoves {
             .map(|x| axial_to_chess_coords(if q > s { calc_q(r, x) } else { x }, r))
             .collect();
 
-
         // we use q or r, whichever is smaller
         // we iterate from 0 up to min(q, r)
         // we hold s constant
@@ -133,6 +132,8 @@ impl RookMoves {
         }
     }
     pub fn drop_arm(&mut self) {
+        // drop the current arm of valid rook moves
+        // e.g. if a piece is blocking the remainder of the arm
         self.move_list.pop();
     }
 }
