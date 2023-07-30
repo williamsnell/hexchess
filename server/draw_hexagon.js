@@ -71,23 +71,25 @@ for (let i = 0; i < hex_positions.length; i++) {
   polygon_points.push(get_polygon_points(hex_size, hex_pos.x, hex_pos.y, 6));
 }
 
-
-function draw_dot(rank, file) {
-  var x, y;
-  [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
-  
+function draw_dot_x_y(x, y, radius=0.3 * hex_size) {
   ctx.beginPath();
   ctx.fillStyle = "#000000";
   ctx.lineStyle = "#000000";
   ctx.lineWidth = 0;
-  ctx.arc(x, y, hex_size * 0.3, 0, 2 * Math.PI);
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
   ctx.fill();
   ctx.stroke();
+  ctx.closePath();
+}
+
+function draw_dot(rank, file) {
+  var x, y;
+  [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
+  draw_dot_x_y(x, y);
 }
 
 function parse_moves(text) {
   var payload = JSON.parse(text);
-  console.log(payload);
   var moves = payload["moves"];
   moves.forEach((val) => draw_dot(val["rank"], val["file"]));
   return text;
@@ -99,16 +101,15 @@ fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catc
 label_hexes(ctx, canvas, hex_size);
 
 function on_mouse_move(event) {
-  const mouse_x = event.clientX;
-  const mouse_y = event.clientY;
+  const mouse_x = event.offsetX;
+  const mouse_y = event.offsetY;
 
   draw_board();
-  
-  for (let i = 0; i < polygon_points.length; i++) {
-    if (isInsidePolygon(polygon_points[i], mouse_x, mouse_y)) {
-      console.log(polygon_points[i]);
-      draw_hexagon(hex_size, hex_positions[i].x, hex_positions[i].y, "#000000", ctx);
-      break;
+
+  for (let i = 0; i < hex_positions.length; i++) {
+    if (Math.sqrt((mouse_x - hex_positions[i].x)**2 + (mouse_y - hex_positions[i].y)**2) < hex_size * 0.866) {
+      ctx.lineWidth = 0;
+      draw_dot_x_y(hex_positions[i].x, hex_positions[i].y, hex_size * 0.866);
     }
   }
 }
