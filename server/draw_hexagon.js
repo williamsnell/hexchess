@@ -65,12 +65,6 @@ function draw_board() {
 
 const hex_positions = draw_board();
 
-var polygon_points = [];
-for (let i = 0; i < hex_positions.length; i++) {
-  var hex_pos = hex_positions[i];
-  polygon_points.push(get_polygon_points(hex_size, hex_pos.x, hex_pos.y, 6));
-}
-
 function draw_dot_x_y(x, y, radius=0.3 * hex_size) {
   ctx.beginPath();
   ctx.fillStyle = "#000000";
@@ -105,11 +99,13 @@ function on_mouse_move(event) {
   const mouse_y = event.offsetY;
 
   draw_board();
+  label_hexes(ctx, canvas, hex_size);
+
 
   for (let i = 0; i < hex_positions.length; i++) {
     if (Math.sqrt((mouse_x - hex_positions[i].x)**2 + (mouse_y - hex_positions[i].y)**2) < hex_size * 0.866) {
       ctx.lineWidth = 0;
-      draw_dot_x_y(hex_positions[i].x, hex_positions[i].y, hex_size * 0.866);
+      draw_dot_x_y(hex_positions[i].x, hex_positions[i].y,);
     }
   }
 }
@@ -117,3 +113,16 @@ function on_mouse_move(event) {
 canvas.addEventListener("click", on_mouse_move);
 
 
+
+// test websocket
+window.onload = () => {
+  const BACKEND_URL = "wss://" + window.location.hostname + ":9231/echo"
+  const socket = new WebSocket(BACKEND_URL)
+  socket.onopen = () =>  { 
+      console.log("Socket Opened")
+      setInterval(_ => socket.send("Hello rust!"), 3000)
+  }
+  socket.onmessage = (msg) => alert(msg.data)
+  socket.onerror = (err) => console.error(err)
+  socket.onclose = () => console.log("Socket Closed")
+}
