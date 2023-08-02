@@ -48,11 +48,8 @@ pub fn calc_r(q: u8, s: u8) -> u8 {
 }
 
 pub fn axial_to_chess_coords(q: u8, r: u8) -> Hexagon {
-    println!("=> q: {:?}, r: {:?}", q, r);
-
     let rank = q;
     let file = r + get_rank_length(q).unwrap() + (if rank < 6 { 0 } else { rank - 5 }) - rank - 6;
-    println!("=> rank: {:?}, file: {:?}", rank, file);
     Hexagon {
         rank: rank,
         file: file,
@@ -70,7 +67,6 @@ impl RookMoves {
         // are returned earlier in the result
         // loop through arms
         let (q, r) = chess_to_axial_coords(&position);
-        println!("q: {:?}, r: {:?}", q, r);
         let arm_top: Vec<Hexagon> = (position.file + 1..get_rank_length(position.rank).unwrap())
             .rev()
             .map(|x| Hexagon {
@@ -86,8 +82,6 @@ impl RookMoves {
                 file: x,
             })
             .collect();
-
-        println!("s={:?}", s);
 
         let arm_top_left: Vec<Hexagon> = (0..min(q, s))
             .map(|x| axial_to_chess_coords(if q > s { calc_q(r, x) } else { x }, r))
