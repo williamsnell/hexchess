@@ -1,50 +1,30 @@
-use futures::FutureExt;
-use futures::StreamExt;
-use server::ThreadPool;
 use std::{
     fs,
-    io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream},
-    thread,
-    time::Duration,
+    io::{BufReader, prelude::*},
 };
-use warp::Filter;
+use std::net::{TcpListener, TcpStream};
+use std::thread::spawn;
+use tungstenite::{
+    WebSocket,
+    accept,
+    Message::Text,
+};
+use hexchesscore::Hexagon;
 
-#[tokio::main]
-async fn main() {
-    let echo = warp::path("echo").and(warp::ws()).map(|ws: warp::ws::Ws| {
-        ws.on_upgrade(|websocket| {
-            let (tx, rx) = websocket.split();
-            rx.forward(tx).map(|result| {
-                if let Err(e) = result {
-                    eprintln!("websocket error: {:?}", e);
-                }
-            })
-        })
-    });
-
-    let current_dir = std::env::current_dir().expect("failed to read current directory");
-    let routes = warp::get().and(echo.or(warp::fs::dir(current_dir)));
-    warp::serve(routes)
-        .tls()
-        .cert_path("cert.pem")
-        .key_path("key.rsa")
-        .run(([0, 0, 0, 0], 9231))
-        .await;
+fn handle_websocket(mut websocket: WebSocket<TcpStream>) {
+    loop {
+        let msg = websocket.read().unwrap();
+        if msg.is_text() {
+            let rook_moves: Vec<Hexagon> =
+                hexchesscore::moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+            let moves_json = serde_json::to_string(&rook_moves).unwrap();
+            let json = format!("{{\"moves\": {moves_json}}}");
+            websocket.send(Text(json)).unwrap();
+        }
+    }
 }
-// let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-// let pool = ThreadPool::new(8);
 
-// for stream in listener.incoming() {
-//     let stream = stream.unwrap();
-
-//     pool.execute(|| {
-//         handle_connection(stream);
-//     })
-// }
-// }
-
-fn handle_connection(mut stream: TcpStream) {
+fn handle_tcp_stream(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
@@ -52,6 +32,7 @@ fn handle_connection(mut stream: TcpStream) {
         "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
         "GET /draw_hexagon.js HTTP/1.1" => ("HTTP/1.1 200 OK", "draw_hexagon.js"),
         "GET /hex_frontend_funcs.js HTTP/1.1" => ("HTTP/1.1 200 OK", "hex_frontend_funcs.js"),
+        "GET /horse.jpg HTTP/1.1" => ("HTTP/1.1 200 OK", "horse.jpg"),
         "GET /moves.json HTTP/1.1" => ("HTTP/1.1 200 OK", "moves.json"),
         _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
     };
@@ -63,6 +44,8 @@ fn handle_connection(mut stream: TcpStream) {
         "text/javascript"
     } else if filename.ends_with(".html") {
         "text/html"
+    } else if filename.ends_with(".jpg") {
+        "image/jpeg"
     } else {
         ""
     };
@@ -70,4 +53,37 @@ fn handle_connection(mut stream: TcpStream) {
     let response = format!("{status_line}\r\nContent-Length: {length}\r\nContent-Type: {content_type}\r\n\r\n{contents}");
 
     stream.write_all(response.as_bytes()).unwrap();
+}
+
+fn main() {
+
+    let websocket_server = TcpListener::bind("127.0.0.1:8080").unwrap();
+    let server = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+
+    spawn(move 
+        || {
+        loop {
+            for stream in websocket_server.incoming() {
+                spawn (|| {          
+                    let mut websocket = accept(stream.unwrap()).unwrap();
+                    handle_websocket(websocket);
+                });
+            }
+        }
+    }
+    );
+
+    spawn(move || {
+        loop {
+            for stream in server.incoming() {
+                spawn (move || {
+                    handle_tcp_stream(stream.unwrap());
+                    }
+                );
+            }
+        }
+    });
+
+    loop {};
 }
