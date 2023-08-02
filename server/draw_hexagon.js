@@ -1,5 +1,7 @@
-import { draw_hexagon, 
-  calc_column_x_position, calc_column_y_positions,  vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points } from "./hex_frontend_funcs.js";
+import {
+  draw_hexagon,
+  calc_column_x_position, calc_column_y_positions, vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points
+} from "./hex_frontend_funcs.js";
 
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
@@ -29,30 +31,36 @@ function draw_hex_callback(element, index) {
   var y_positions = draw_hexagon_column(element, x_positions[0], canvas.height * 0.5, hex_size);
   var out = [];
   for (let i = 0; i < x_positions.length; i++) {
-    out.push({"x": x_positions[i], "y": y_positions[i]});
+    out.push({ "x": x_positions[i], "y": y_positions[i] });
   }
   return out;
 }
 
 function label_hexes(context, canvas, hex_size) {
+  var hexes = {};
   for (var i = 0; i < files.length; i++) {
     for (var j = 0; j <= vertical_hexagons_per_column[i] - 1; j++) {
       var x, y;
       [x, y] = get_hexagon_position(i, j, canvas, hex_size);
       context.fillStyle = "#000000";
       context.font = "15px arial";
-      context.fillText((String(files[i]).toUpperCase() + String(j + 1)), x, y);
-      // var q = i;
+      var chess_coord = (String(files[i]).toUpperCase() + String(j + 1));
+      context.fillText(chess_coord, x, y);
+
+      hexes[`${x},${y}`] = chess_coord;
+
+      // cubic coordinates
       var q = i;
       var r = j + i - (vertical_hexagons_per_column[i] - 6) + (i < 6 ? 0 : 5 - i);
       var s = q - r + 5;
-      context.fillText(q, x - hex_size/4, y - hex_size / 2);
+      context.fillText(q, x - hex_size / 4, y - hex_size / 2);
       context.fillStyle = "#F0F0F0";
       context.fillText(r, x + hex_size / 3, y + hex_size * 0.5);
       context.fillStyle = "#F0F000";
-      context.fillText(s, x - hex_size * 0.9, y + hex_size /3);
+      context.fillText(s, x - hex_size * 0.9, y + hex_size / 3);
     }
   }
+  return hexes;
 }
 
 function draw_board() {
@@ -65,7 +73,7 @@ function draw_board() {
 
 const hex_positions = draw_board();
 
-function draw_dot_x_y(x, y, radius=0.3 * hex_size) {
+function draw_dot_x_y(x, y, radius = 0.3 * hex_size) {
   ctx.beginPath();
   ctx.fillStyle = "#000000";
   ctx.lineStyle = "#000000";
@@ -92,9 +100,23 @@ function parse_moves(text) {
 // Draw all positions from a file
 fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
 
-label_hexes(ctx, canvas, hex_size);
+var hex_labels = label_hexes(ctx, canvas, hex_size);
 
-function on_mouse_move(event) {
+
+
+function setup_websocket() {
+  const BACKEND_URL = "ws://" + window.location.hostname + ":8080";
+  const socket = new WebSocket(BACKEND_URL);
+  socket.onmessage = (msg) => parse_moves(msg.data);
+  socket.onerror = (err) => console.error(err);
+  socket.onclose = () => console.log("Socket Closed");
+
+  return socket;
+}
+
+var socket = setup_websocket();
+
+function select_hexagon(event) {
   const mouse_x = event.offsetX;
   const mouse_y = event.offsetY;
 
@@ -103,26 +125,22 @@ function on_mouse_move(event) {
 
 
   for (let i = 0; i < hex_positions.length; i++) {
-    if (Math.sqrt((mouse_x - hex_positions[i].x)**2 + (mouse_y - hex_positions[i].y)**2) < hex_size * 0.866) {
+    if (Math.sqrt((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < hex_size * 0.866) {
       ctx.lineWidth = 0;
-      draw_dot_x_y(hex_positions[i].x, hex_positions[i].y,);
+      var hex_x = hex_positions[i].x;
+      var hex_y = hex_positions[i].y;
+
+      if (socket.readyState == socket.OPEN) {
+        socket.send(hex_labels[`${hex_x},${hex_y}`]);
+      }
+      else {
+        socket = setup_websocket(); 
+      }
+      break;
     }
   }
+
 }
 
-canvas.addEventListener("click", on_mouse_move);
+canvas.addEventListener("click", select_hexagon);
 
-
-
-// test websocket
-window.onload = () => {
-  const BACKEND_URL = "wss://" + window.location.hostname + ":9231/echo"
-  const socket = new WebSocket(BACKEND_URL)
-  socket.onopen = () =>  { 
-      console.log("Socket Opened")
-      setInterval(_ => socket.send("Hello rust!"), 3000)
-  }
-  socket.onmessage = (msg) => alert(msg.data)
-  socket.onerror = (err) => console.error(err)
-  socket.onclose = () => console.log("Socket Closed")
-}
