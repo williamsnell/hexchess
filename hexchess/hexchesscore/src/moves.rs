@@ -150,9 +150,79 @@ impl Iterator for RookMoves {
     }
 }
 
-/* "a1", "b2", "c3", "d4", "e5",
-"e6", "d6", "c6", "b6", "a6",
-"f1", "f2", "f3", "f4", "f5",
-"f7", "f8", "f9", "f10", "f11",
-"g5", "h4", "i3", "k2", "l1",
-"g6", "h6", "i6", "k6", "l6",*/
+pub struct BishopMoves {
+    move_list: Vec<Vec<Hexagon>>,
+}
+
+impl BishopMoves {
+    pub fn new(position: Hexagon) -> BishopMoves {
+        // Get the moves a bishop could make, from the current position, assuming
+        // no other pieces. These moves spiral out from the bishop, so closer hexagons
+        // are returned earlier in the result
+        let (q, r) = chess_to_axial_coords(&position);
+        let s = calc_s(q, r);
+
+        let arm_left: Vec<Hexagon> =
+            zip((q % 2..q).step_by(2).rev(), zip((0..r).rev(), (0..s).rev()))
+                .map(|(x, (y, z))| axial_to_chess_coords(x, y))
+                .collect();
+
+        let arm_right: Vec<Hexagon> =
+            zip((q+2..=10).step_by(2), zip((r+1..=10), (s+1..=10)))
+                .map(|(x, (y, z))| axial_to_chess_coords(x, y))
+                .collect();
+
+        let arm_down_left: Vec<Hexagon> =
+            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), (0..s).rev()))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, x))
+                .collect();
+
+        let arm_up_right: Vec<Hexagon> =
+            zip((r+2..=10).step_by(2), zip((q+1..=10), (s+1..=10)))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, x))
+                .collect();
+
+        let arm_up_left: Vec<Hexagon> = zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), (r+1..=10)))
+        .map(|(x, (y, z))| axial_to_chess_coords(y, z))
+        .collect();
+
+        let arm_down_right: Vec<Hexagon> =
+            zip((s+2..=10).step_by(2), zip((q+1..=10), (0..r).rev()))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, z))
+                .collect();
+        
+        BishopMoves {
+            move_list: vec![
+                arm_left,
+                arm_right,
+                arm_down_left,
+                arm_up_right,
+                arm_up_left,
+                arm_down_right,
+                ],
+        }
+    }
+    pub fn drop_arm(&mut self) {
+        // drop the current arm of valid rook moves
+        // e.g. if a piece is blocking the remainder of the arm
+        self.move_list.pop();
+    }
+}
+
+impl Iterator for BishopMoves {
+    type Item = Hexagon;
+    fn next(&mut self) -> Option<Hexagon> {
+        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
+        //     Some(output)
+        if let Some(moves) = self.move_list.last_mut() {
+            if let Some(output) = moves.pop() {
+                Some(output)
+            } else {
+                self.move_list.pop();
+                self.next()
+            }
+        } else {
+            None
+        }
+    }
+}

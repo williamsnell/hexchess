@@ -1,22 +1,19 @@
-use std::{
-    fs,
-    io::{BufReader, prelude::*},
-};
+use hexchesscore::{moves, Hexagon};
 use std::net::{TcpListener, TcpStream};
 use std::thread::spawn;
-use tungstenite::{
-    WebSocket,
-    accept,
-    Message::Text,
+use std::{
+    fs,
+    io::{prelude::*, BufReader},
 };
-use hexchesscore::Hexagon;
+use tungstenite::{accept, Message::Text, WebSocket};
 
 fn handle_websocket(mut websocket: WebSocket<TcpStream>) {
     loop {
         let msg = websocket.read().unwrap();
         if msg.is_text() {
             let rook_moves: Vec<Hexagon> =
-                hexchesscore::moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+                // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+                moves::BishopMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
             let moves_json = serde_json::to_string(&rook_moves).unwrap();
             let json = format!("{{\"moves\": {moves_json}}}");
             websocket.send(Text(json)).unwrap();
@@ -56,34 +53,25 @@ fn handle_tcp_stream(mut stream: TcpStream) {
 }
 
 fn main() {
-
     let websocket_server = TcpListener::bind("127.0.0.1:8080").unwrap();
     let server = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-
-    spawn(move 
-        || {
-        loop {
-            for stream in websocket_server.incoming() {
-                spawn (|| {          
-                    let mut websocket = accept(stream.unwrap()).unwrap();
-                    handle_websocket(websocket);
-                });
-            }
-        }
-    }
-    );
-
-    spawn(move || {
-        loop {
-            for stream in server.incoming() {
-                spawn (move || {
-                    handle_tcp_stream(stream.unwrap());
-                    }
-                );
-            }
+    spawn(move || loop {
+        for stream in websocket_server.incoming() {
+            spawn(|| {
+                let mut websocket = accept(stream.unwrap()).unwrap();
+                handle_websocket(websocket);
+            });
         }
     });
 
-    loop {};
+    spawn(move || loop {
+        for stream in server.incoming() {
+            spawn(move || {
+                handle_tcp_stream(stream.unwrap());
+            });
+        }
+    });
+
+    loop {}
 }
