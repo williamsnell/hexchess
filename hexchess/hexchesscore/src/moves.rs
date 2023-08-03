@@ -173,12 +173,12 @@ impl BishopMoves {
                 .collect();
 
         let arm_down_left: Vec<Hexagon> =
-            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), (0..s).rev()))
+            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), (s+1..=10)))
                 .map(|(x, (y, z))| axial_to_chess_coords(y, x))
                 .collect();
 
         let arm_up_right: Vec<Hexagon> =
-            zip((r+2..=10).step_by(2), zip((q+1..=10), (s+1..=10)))
+            zip((r+2..=10).step_by(2), zip((q+1..=10), (0..s).rev()))
                 .map(|(x, (y, z))| axial_to_chess_coords(y, x))
                 .collect();
 
