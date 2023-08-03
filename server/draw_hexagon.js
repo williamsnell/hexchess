@@ -36,7 +36,7 @@ function draw_hex_callback(element, index) {
   return out;
 }
 
-function label_hexes(context, canvas, hex_size) {
+function label_hexes(context, canvas, hex_size, show=true) {
   var hexes = {};
   for (var i = 0; i < files.length; i++) {
     for (var j = 0; j <= vertical_hexagons_per_column[i] - 1; j++) {
@@ -45,19 +45,21 @@ function label_hexes(context, canvas, hex_size) {
       context.fillStyle = "#000000";
       context.font = "15px arial";
       var chess_coord = (String(files[i]).toUpperCase() + String(j + 1));
-      context.fillText(chess_coord, x, y);
-
+      
       hexes[`${x},${y}`] = chess_coord;
-
+      
       // cubic coordinates
       var q = i;
       var r = j + i - (vertical_hexagons_per_column[i] - 6) + (i < 6 ? 0 : 5 - i);
       var s = q - r + 5;
-      context.fillText(q, x - hex_size / 4, y - hex_size / 2);
-      context.fillStyle = "#F0F0F0";
-      context.fillText(r, x + hex_size / 3, y + hex_size * 0.5);
-      context.fillStyle = "#F0F000";
-      context.fillText(s, x - hex_size * 0.9, y + hex_size / 3);
+      if (show) {
+        context.fillText(chess_coord, x, y);
+        context.fillText(q, x - hex_size / 4, y - hex_size / 2);
+        context.fillStyle = "#F0F0F0";
+        context.fillText(r, x + hex_size / 3, y + hex_size * 0.5);
+        context.fillStyle = "#F0F000";
+        context.fillText(s, x - hex_size * 0.9, y + hex_size / 3);
+      }
     }
   }
   return hexes;
@@ -100,7 +102,7 @@ function parse_moves(text) {
 // Draw all positions from a file
 fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
 
-var hex_labels = label_hexes(ctx, canvas, hex_size);
+var hex_labels = label_hexes(ctx, canvas, hex_size, false);
 
 
 
@@ -116,13 +118,12 @@ function setup_websocket() {
 
 var socket = setup_websocket();
 
-function select_hexagon(event) {
+function handle_click(event) {
   const mouse_x = event.offsetX;
   const mouse_y = event.offsetY;
 
   draw_board();
-  label_hexes(ctx, canvas, hex_size);
-
+  label_hexes(ctx, canvas, hex_size, false);
 
   for (let i = 0; i < hex_positions.length; i++) {
     if (Math.sqrt((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < hex_size * 0.866) {
@@ -142,5 +143,5 @@ function select_hexagon(event) {
 
 }
 
-canvas.addEventListener("click", select_hexagon);
+canvas.addEventListener("click", handle_click);
 
