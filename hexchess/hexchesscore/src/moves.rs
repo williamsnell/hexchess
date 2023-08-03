@@ -1,4 +1,5 @@
 use std::{
+    vec::Vec,
     cmp::{max, min},
     iter::zip,
 };
@@ -210,6 +211,49 @@ impl BishopMoves {
 }
 
 impl Iterator for BishopMoves {
+    type Item = Hexagon;
+    fn next(&mut self) -> Option<Hexagon> {
+        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
+        //     Some(output)
+        if let Some(moves) = self.move_list.last_mut() {
+            if let Some(output) = moves.pop() {
+                Some(output)
+            } else {
+                self.move_list.pop();
+                self.next()
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub struct QueenMoves {
+    move_list: Vec<Vec<Hexagon>>,
+}
+
+impl QueenMoves {
+    pub fn new(position: Hexagon) -> QueenMoves {
+        // Get the moves a bishop could make, from the current position, assuming
+        // no other pieces. These moves spiral out from the bishop, so closer hexagons
+        // are returned earlier in the result
+
+        let mut queen_moves = BishopMoves::new(position).move_list;
+        let mut rook_moves = RookMoves::new(position).move_list;
+        queen_moves.append(&mut rook_moves);
+
+        QueenMoves {
+            move_list: queen_moves,
+        }
+    }
+    pub fn drop_arm(&mut self) {
+        // drop the current arm of valid rook moves
+        // e.g. if a piece is blocking the remainder of the arm
+        self.move_list.pop();
+    }
+}
+
+impl Iterator for QueenMoves {
     type Item = Hexagon;
     fn next(&mut self) -> Option<Hexagon> {
         // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
