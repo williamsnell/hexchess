@@ -311,3 +311,54 @@ impl Iterator for KingMoves {
         }
     }
 }
+
+pub struct KnightMoves {
+    move_list: Vec<Hexagon>,
+}
+
+impl KnightMoves {
+    pub fn new(position: Hexagon) -> KnightMoves {
+        let (q, r) = chess_to_axial_coords(&position);
+        let s = calc_s(q, r);
+
+        let move_options = [
+            //left
+            if (q > 1) & (r < 10) & (s > 2) {Some(axial_to_chess_coords(q-2, calc_r(q-2,s-3)))} else {None},
+            if (q > 2) & (r > 0) & (s > 1) {Some(axial_to_chess_coords(q-3, r - 1))} else {None},
+            if (q > 2) & (r > 1) & (s > 0) {Some(axial_to_chess_coords(q-3, r - 2))} else {None},
+            if (q > 1) & (r > 2) & (s < 10) {Some(axial_to_chess_coords(q-2, r - 3))} else {None},
+            // right
+            if (q < 9) & (r > 0) & (s < 8) {Some(axial_to_chess_coords(q+2, calc_r(q+2,s+3)))} else {None},
+            if (q < 8) & (r < 10) & (s < 9) {Some(axial_to_chess_coords(q+3, r + 1))} else {None},
+            if (q < 8) & (r < 9) & (s < 10) {Some(axial_to_chess_coords(q+3, r+ 2))} else {None},
+            if (q < 9) & (r < 8) & (s > 0) {Some(axial_to_chess_coords(q+2, r + 3))} else {None},
+
+            //top
+            if (q < 10) & (r < 8) & (s > 2) {Some(axial_to_chess_coords(q+1, r + 3))} else {None},
+            if (q > 0) & (r < 9) & (s > 2) {Some(axial_to_chess_coords(q-1, calc_r(q-1,s-3)))} else {None},
+
+            //bottom
+            if (q < 10) & (r > 2) & (s < 8) {Some(axial_to_chess_coords(q+1, r - 2))} else {None},
+            if (q > 0) & (r > 2) & (s < 8) {Some(axial_to_chess_coords(q-1, r - 3))} else {None},
+
+        ];
+
+        let move_list: Vec<Hexagon> = move_options.into_iter().filter_map(|x| x).collect();
+        
+
+        KnightMoves { move_list: move_list }
+    }
+}
+
+impl Iterator for KnightMoves {
+    type Item = Hexagon;
+    fn next(&mut self) -> Option<Hexagon> {
+        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
+        //     Some(output)
+        if let Some(val) = self.move_list.pop() {
+            Some(val)
+        } else {
+            None
+        }
+    }
+}
