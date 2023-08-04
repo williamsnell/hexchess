@@ -290,7 +290,12 @@ impl KingMoves {
         KingMoves {
             move_list: move_list
         }
-
+    }
+    pub fn drop_arm(&mut self) {
+        // drop the current arm of valid moves
+        // In this case, that is just removing a single move.
+        // e.g. if a piece is blocking the remainder of the arm
+        self.move_list.pop();
     }
 }
 
@@ -347,6 +352,13 @@ impl KnightMoves {
         
 
         KnightMoves { move_list: move_list }
+    }
+
+    pub fn drop_arm(&mut self) {
+        // drop the current arm of valid moves.
+        // In this case, that is just removing a single move.
+        // e.g. if a piece is blocking the remainder of the arm
+        self.move_list.pop();
     }
 }
 
