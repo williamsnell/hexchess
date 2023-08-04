@@ -1,6 +1,6 @@
 use std::{
     vec::Vec,
-    cmp::{max, min},
+    cmp::min,
     iter::zip,
 };
 
@@ -165,31 +165,31 @@ impl BishopMoves {
 
         let arm_left: Vec<Hexagon> =
             zip((q % 2..q).step_by(2).rev(), zip((0..r).rev(), (0..s).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(x, y)).rev()
+                .map(|(x, (y, _z))| axial_to_chess_coords(x, y)).rev()
                 .collect();
 
         let arm_right: Vec<Hexagon> =
-            zip((q+2..=10).step_by(2), zip((r+1..=10), (s+1..=10)))
-                .map(|(x, (y, z))| axial_to_chess_coords(x, y)).rev()
+            zip((q+2..=10).step_by(2), zip(r+1..=10, s+1..=10))
+                .map(|(x, (y, _z))| axial_to_chess_coords(x, y)).rev()
                 .collect();
 
         let arm_down_left: Vec<Hexagon> =
-            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), (s+1..=10)))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, x)).rev()
+            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), s+1..=10))
+                .map(|(x, (y, _z))| axial_to_chess_coords(y, x)).rev()
                 .collect();
 
         let arm_up_right: Vec<Hexagon> =
-            zip((r+2..=10).step_by(2), zip((q+1..=10), (0..s).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, x)).rev()
+            zip((r+2..=10).step_by(2), zip(q+1..=10, (0..s).rev()))
+                .map(|(x, (y, _z))| axial_to_chess_coords(y, x)).rev()
                 .collect();
 
-        let arm_up_left: Vec<Hexagon> = zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), (r+1..=10)))
-        .map(|(x, (y, z))| axial_to_chess_coords(y, z)).rev()
+        let arm_up_left: Vec<Hexagon> = zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), r+1..=10))
+        .map(|(_x, (y, z))| axial_to_chess_coords(y, z)).rev()
         .collect();
 
         let arm_down_right: Vec<Hexagon> =
-            zip((s+2..=10).step_by(2), zip((q+1..=10), (0..r).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, z)).rev()
+            zip((s+2..=10).step_by(2), zip(q+1..=10, (0..r).rev()))
+                .map(|(_x, (y, z))| axial_to_chess_coords(y, z)).rev()
                 .collect();
         
         BishopMoves {
