@@ -102,7 +102,7 @@ function parse_moves(text) {
 // Draw all positions from a file
 fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
 
-var hex_labels = label_hexes(ctx, canvas, hex_size, false);
+var hex_labels = label_hexes(ctx, canvas, hex_size);
 
 
 
@@ -123,7 +123,7 @@ function handle_click(event) {
   const mouse_y = event.offsetY;
 
   draw_board();
-  label_hexes(ctx, canvas, hex_size, false);
+  label_hexes(ctx, canvas, hex_size);
 
   for (let i = 0; i < hex_positions.length; i++) {
     if (Math.sqrt((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < hex_size * 0.866) {

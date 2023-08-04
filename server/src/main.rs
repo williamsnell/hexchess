@@ -13,7 +13,7 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>) {
         if msg.is_text() {
             let rook_moves: Vec<Hexagon> =
                 // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
-                moves::QueenMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+                moves::KingMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
             let moves_json = serde_json::to_string(&rook_moves).unwrap();
             let json = format!("{{\"moves\": {moves_json}}}");
             websocket.send(Text(json)).unwrap();

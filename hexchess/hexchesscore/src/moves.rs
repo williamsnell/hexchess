@@ -165,31 +165,31 @@ impl BishopMoves {
 
         let arm_left: Vec<Hexagon> =
             zip((q % 2..q).step_by(2).rev(), zip((0..r).rev(), (0..s).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(x, y))
+                .map(|(x, (y, z))| axial_to_chess_coords(x, y)).rev()
                 .collect();
 
         let arm_right: Vec<Hexagon> =
             zip((q+2..=10).step_by(2), zip((r+1..=10), (s+1..=10)))
-                .map(|(x, (y, z))| axial_to_chess_coords(x, y))
+                .map(|(x, (y, z))| axial_to_chess_coords(x, y)).rev()
                 .collect();
 
         let arm_down_left: Vec<Hexagon> =
             zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), (s+1..=10)))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, x))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, x)).rev()
                 .collect();
 
         let arm_up_right: Vec<Hexagon> =
             zip((r+2..=10).step_by(2), zip((q+1..=10), (0..s).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, x))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, x)).rev()
                 .collect();
 
         let arm_up_left: Vec<Hexagon> = zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), (r+1..=10)))
-        .map(|(x, (y, z))| axial_to_chess_coords(y, z))
+        .map(|(x, (y, z))| axial_to_chess_coords(y, z)).rev()
         .collect();
 
         let arm_down_right: Vec<Hexagon> =
             zip((s+2..=10).step_by(2), zip((q+1..=10), (0..r).rev()))
-                .map(|(x, (y, z))| axial_to_chess_coords(y, z))
+                .map(|(x, (y, z))| axial_to_chess_coords(y, z)).rev()
                 .collect();
         
         BishopMoves {
@@ -254,6 +254,47 @@ impl QueenMoves {
 }
 
 impl Iterator for QueenMoves {
+    type Item = Hexagon;
+    fn next(&mut self) -> Option<Hexagon> {
+        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
+        //     Some(output)
+        if let Some(moves) = self.move_list.last_mut() {
+            if let Some(output) = moves.pop() {
+                Some(output)
+            } else {
+                self.move_list.pop();
+                self.next()
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub struct KingMoves {
+    move_list: Vec<Vec<Hexagon>>,
+}
+
+impl KingMoves {
+    pub fn new(position: Hexagon) -> KingMoves {
+        let king_moves = QueenMoves::new(position);
+        
+        let mut move_list: Vec<Vec<Hexagon>> = Vec::new();
+
+        for mut arm in king_moves.move_list {
+            move_list.push(vec![arm.pop().unwrap()]);
+        }
+
+        // this is likely very slow, but it's quick to code...
+        // get the first move from each of the queen's arms
+        KingMoves {
+            move_list: move_list
+        }
+
+    }
+}
+
+impl Iterator for KingMoves {
     type Item = Hexagon;
     fn next(&mut self) -> Option<Hexagon> {
         // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
