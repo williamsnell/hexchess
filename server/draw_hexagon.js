@@ -3,6 +3,8 @@ import {
   calc_column_x_position, calc_column_y_positions, vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points
 } from "./hex_frontend_funcs.js";
 
+const draw_labels = false;
+
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
 
@@ -102,7 +104,7 @@ function parse_moves(text) {
 // Draw all positions from a file
 fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
 
-var hex_labels = label_hexes(ctx, canvas, hex_size);
+var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 
 
 
@@ -123,7 +125,7 @@ function handle_click(event) {
   const mouse_y = event.offsetY;
 
   draw_board();
-  label_hexes(ctx, canvas, hex_size);
+  label_hexes(ctx, canvas, hex_size, draw_labels);
 
   for (let i = 0; i < hex_positions.length; i++) {
     if (Math.sqrt((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < hex_size * 0.866) {
