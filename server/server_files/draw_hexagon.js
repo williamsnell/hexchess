@@ -3,7 +3,7 @@ import {
   calc_column_x_position, calc_column_y_positions, vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points
 } from "./hex_frontend_funcs.js";
 
-const draw_labels = false;
+const draw_labels = true;
 
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
