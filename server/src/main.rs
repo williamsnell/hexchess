@@ -32,7 +32,11 @@ fn handle_tcp_stream(mut stream: TcpStream) {
         {
             let status_line;
             let filename;
-            if Path::new(&(String::from("server_files") + valid_http_request)).exists() {
+            if valid_http_request == "/".to_string() {
+                status_line = "HTTP/1.1 200 OK";
+                filename = String::from("server_files/hello.html");
+            }
+            else if Path::new(&(String::from("server_files") + valid_http_request)).exists() {
                 status_line = "HTTP/1.1 200 OK";
                 filename = String::from("server_files") + valid_http_request;
             } else {
@@ -46,6 +50,7 @@ fn handle_tcp_stream(mut stream: TcpStream) {
                 Some("js") => "text/javascript",
                 Some("html") => "text/html",
                 Some("jpg") => "text/jpeg",
+                Some("svg") => "image/svg+xml",
                 _ => ""
             };
 
@@ -53,33 +58,6 @@ fn handle_tcp_stream(mut stream: TcpStream) {
             stream.write_all(response.as_bytes()).unwrap();
 
         }
-
-    // let (status_line, filename) = match &request_line[..].split(" ").collect::<[&str]>()  {
-    //     ["GET", x, "HTTP/1.1"] => ("HTTP/1.1 200 OK", x),
-    //     _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
-    //     "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
-    //     "GET /draw_hexagon.js HTTP/1.1" => ("HTTP/1.1 200 OK", "draw_hexagon.js"),
-    //     "GET /hex_frontend_funcs.js HTTP/1.1" => ("HTTP/1.1 200 OK", "hex_frontend_funcs.js"),
-    //     "GET /horse.jpg HTTP/1.1" => ("HTTP/1.1 200 OK", "horse.jpg"),
-    //     "GET /moves.json HTTP/1.1" => ("HTTP/1.1 200 OK", "moves.json"),
-    //     _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
-    // };
-
-
-
-    // let content_type = if filename.ends_with(".js") {
-    //     "text/javascript"
-    // } else if filename.ends_with(".html") {
-    //     "text/html"
-    // } else if filename.ends_with(".jpg") {
-    //     "image/jpeg"
-    // } else {
-    //     ""
-    // };
-
-    // let response = format!("{status_line}\r\nContent-Length: {length}\r\nContent-Type: {content_type}\r\n\r\n{contents}");
-
-    // stream.write_all(response.as_bytes()).unwrap();
 }
 
 fn main() {
