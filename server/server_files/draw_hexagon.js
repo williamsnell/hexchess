@@ -1,9 +1,9 @@
 import {
   draw_hexagon,
-  calc_column_x_position, calc_column_y_positions, vertical_hexagons_per_column, get_hexagon_position, files, isInsidePolygon, get_polygon_points
+  calc_column_x_position, calc_column_y_positions, vertical_hexagons_per_column, get_hexagon_position, files
 } from "./hex_frontend_funcs.js";
 
-const draw_labels = true;
+const draw_labels = false;
 
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
@@ -27,6 +27,9 @@ function draw_hexagon_column(number_of_hexagons, x, y_center, size) {
 }
 
 var hex_size = canvas.width * 0.05;
+
+var knight = new Image();
+knight.src = "assets/pieces/knight_white.svg";
 
 function draw_hex_callback(element, index) {
   var x_positions = Array(element).fill([calc_column_x_position(index, hex_size, canvas)]).flat();
@@ -101,9 +104,6 @@ function parse_moves(text) {
   return text;
 }
 
-// Draw all positions from a file
-fetch("moves.json").then(res => res.text()).then(text => parse_moves(text)).catch(e => console.error(e));
-
 var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 
 
@@ -128,10 +128,12 @@ function handle_click(event) {
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
   for (let i = 0; i < hex_positions.length; i++) {
-    if (Math.sqrt((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < hex_size * 0.866) {
+    if (((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < (hex_size * 0.866)**2) {
       ctx.lineWidth = 0;
       var hex_x = hex_positions[i].x;
       var hex_y = hex_positions[i].y;
+
+      ctx.drawImage(knight, hex_x - knight.width/2, hex_y - knight.height/2);
 
       if (socket.readyState == socket.OPEN) {
         socket.send(hex_labels[`${hex_x},${hex_y}`]);
