@@ -339,12 +339,12 @@ impl KnightMoves {
             if (q < 9) & (r < 8) & (s > 0) {Some(axial_to_chess_coords(q+2, r + 3))} else {None},
 
             //top
-            if (q < 10) & (r < 8) & (s > 2) {Some(axial_to_chess_coords(q+1, r + 3))} else {None},
+            if (q < 10) & (r < 8) & (s > 1) {Some(axial_to_chess_coords(q+1, r + 3))} else {None},
             if (q > 0) & (r < 9) & (s > 2) {Some(axial_to_chess_coords(q-1, calc_r(q-1,s-3)))} else {None},
 
             //bottom
-            if (q < 10) & (r > 2) & (s < 8) {Some(axial_to_chess_coords(q+1, r - 2))} else {None},
-            if (q > 0) & (r > 2) & (s < 8) {Some(axial_to_chess_coords(q-1, r - 3))} else {None},
+            if (q < 10) & (r > 1) & (s < 8) {Some(axial_to_chess_coords(q+1, r - 2))} else {None},
+            if (q > 0) & (r > 2) & (s < 9) {Some(axial_to_chess_coords(q-1, r - 3))} else {None},
 
         ];
 
