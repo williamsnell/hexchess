@@ -1,5 +1,6 @@
 use hexchesscore::{moves, Hexagon};
 use std::net::{TcpListener, TcpStream};
+use std::path::{Path, self};
 use std::thread::spawn;
 use std::{
     fs,
@@ -25,31 +26,60 @@ fn handle_tcp_stream(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
-    let (status_line, filename) = match &request_line[..] {
-        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
-        "GET /draw_hexagon.js HTTP/1.1" => ("HTTP/1.1 200 OK", "draw_hexagon.js"),
-        "GET /hex_frontend_funcs.js HTTP/1.1" => ("HTTP/1.1 200 OK", "hex_frontend_funcs.js"),
-        "GET /horse.jpg HTTP/1.1" => ("HTTP/1.1 200 OK", "horse.jpg"),
-        "GET /moves.json HTTP/1.1" => ("HTTP/1.1 200 OK", "moves.json"),
-        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
-    };
+    if let Some(valid_http_request) = request_line.split("GET ").last()
+                                        .expect("no GET in header")
+                                        .split(" HTTP/1.1").next()
+        {
+            let status_line;
+            let filename;
+            if Path::new(&(String::from("server_files") + valid_http_request)).exists() {
+                status_line = "HTTP/1.1 200 OK";
+                filename = String::from("server_files") + valid_http_request;
+            } else {
+                status_line = "HTTP/1.1 404 NOT FOUND";
+                filename = String::from("server_files/404.html");
+            }
+            let contents = fs::read_to_string(&filename).unwrap();
+            let length = contents.len();
+        
+            let content_type = match Path::new(&filename).extension().unwrap().to_str() {
+                Some("js") => "text/javascript",
+                Some("html") => "text/html",
+                Some("jpg") => "text/jpeg",
+                _ => ""
+            };
 
-    let contents = fs::read_to_string(filename).unwrap();
-    let length = contents.len();
+            let response = format!("{status_line}\r\nContent-Length: {length}\r\nContent-Type: {content_type}\r\n\r\n{contents}");
+            stream.write_all(response.as_bytes()).unwrap();
 
-    let content_type = if filename.ends_with(".js") {
-        "text/javascript"
-    } else if filename.ends_with(".html") {
-        "text/html"
-    } else if filename.ends_with(".jpg") {
-        "image/jpeg"
-    } else {
-        ""
-    };
+        }
 
-    let response = format!("{status_line}\r\nContent-Length: {length}\r\nContent-Type: {content_type}\r\n\r\n{contents}");
+    // let (status_line, filename) = match &request_line[..].split(" ").collect::<[&str]>()  {
+    //     ["GET", x, "HTTP/1.1"] => ("HTTP/1.1 200 OK", x),
+    //     _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
+    //     "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
+    //     "GET /draw_hexagon.js HTTP/1.1" => ("HTTP/1.1 200 OK", "draw_hexagon.js"),
+    //     "GET /hex_frontend_funcs.js HTTP/1.1" => ("HTTP/1.1 200 OK", "hex_frontend_funcs.js"),
+    //     "GET /horse.jpg HTTP/1.1" => ("HTTP/1.1 200 OK", "horse.jpg"),
+    //     "GET /moves.json HTTP/1.1" => ("HTTP/1.1 200 OK", "moves.json"),
+    //     _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
+    // };
 
-    stream.write_all(response.as_bytes()).unwrap();
+
+
+    // let content_type = if filename.ends_with(".js") {
+    //     "text/javascript"
+    // } else if filename.ends_with(".html") {
+    //     "text/html"
+    // } else if filename.ends_with(".jpg") {
+    //     "image/jpeg"
+    // } else {
+    //     ""
+    // };
+
+    // let response = format!("{status_line}\r\nContent-Length: {length}\r\nContent-Type: {content_type}\r\n\r\n{contents}");
+
+    // stream.write_all(response.as_bytes()).unwrap();
 }
 
 fn main() {
