@@ -156,10 +156,12 @@ async function display_board(board) {
         var x, y;
   
         [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
+
+        let image_size = hex_size * 1.4;
   
         var image = new Image();
         image.onload = () => {
-          ctx.drawImage(image, x - image.width / 2, y - image.height / 2);
+          ctx.drawImage(image, x - image_size / 2, y - image_size / 2, image_size, image_size);
           resolve();
         };
 
@@ -189,11 +191,9 @@ function process_clickables(clickable, event, target_size, func) {
 
 var selected_piece = null;
 
-var player_color = "Black";
+var player_color = "White";
 
 function show_available_moves(piece) {
-  display_board(board);
-
   // send a message to the websocket to get the 
   // valid moves.
   var x, y;
@@ -212,8 +212,8 @@ function select_piece(piece) {
   show_available_moves(piece);
 }
 
-function move_piece(piece) {
-  console.log("moving piece. send some json");
+function move_piece(destination_hex) {
+  console.log("moving piece. send some json", selected_piece, destination_hex);
   draw_board();
   display_board(board);
   if (player_color == "Black") {
@@ -225,8 +225,6 @@ function move_piece(piece) {
 
 
 function handle_click(event) {
-  draw_board();
-  display_board(board);
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
   // if we haven't selected a piece, only make pieces valid click targets
