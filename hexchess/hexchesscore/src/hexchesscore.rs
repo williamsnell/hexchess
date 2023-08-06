@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
     Pawn,
     Rook,
@@ -11,13 +11,13 @@ pub enum PieceType {
     King,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Color {
     White,
     Black,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub color: Color,
@@ -87,7 +87,7 @@ pub struct Movement {
     destination: Hexagon,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
 }
