@@ -139,48 +139,40 @@ const Color = {
 }
 
 function get_piece_asset(color, piece) {
-  return `assets/pieces/${piece.toLowerCase()}_${color.toLowerCase()}.svg`
+  return `assets/pieces/${piece.toLowerCase()}_${color.toLowerCase()}.svg`;
 }
 
-var board = {
-  "White": [
-    {
-      "rank": 1,
-      "file": 3,
-      "Piece": "Pawn"
-    }
-  ],
-  "Black": [
-    {
-      "rank": 1,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 1,
-      "file": 5,
-      "Piece": "Rook"
-    }]
-}
+var board;
 
-function display_board(board) {
+fetch("starting_moves.json").then((res) => res.json()).then(res => board = res).then((res) => display_board(res));
+
+async function display_board(board) {
   let colors = ["White", "Black"];
+  const promise_array = [];
+  const image_array = [];
   for (let i = 0; i < colors.length; i++) {
     for (const piece of board[colors[i]]) {
-      var x, y;
+      promise_array.push(new Promise(resolve => {
+        var x, y;
+  
+        [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
+  
+        var image = new Image();
+        image.onload = () => {
+          ctx.drawImage(image, x - image.width / 2, y - image.height / 2);
+          resolve();
+        };
 
-      [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
+        image.src = get_piece_asset(colors[i], piece.Piece);
+        image_array.push(image);
 
-      var image = new Image();
-      image.src = get_piece_asset(colors[i], piece.Piece);
-
-      image.onload = ctx.drawImage(image, x - image.width / 2, y - image.height / 2);
-
+      }));
     }
   }
+
+  await Promise.all(promise_array); // wait for all images to load
 }
 
-display_board(board);
 
 function process_clickables(clickable, event, target_size, func) {
   const mouse_x = event.offsetX;
@@ -224,11 +216,17 @@ function move_piece(piece) {
   console.log("moving piece. send some json");
   draw_board();
   display_board(board);
+  if (player_color == "Black") {
+    player_color = "White";
+  } else {
+    player_color = "Black";
+  }
 }
 
 
 function handle_click(event) {
-  // draw_board();
+  draw_board();
+  display_board(board);
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
   // if we haven't selected a piece, only make pieces valid click targets

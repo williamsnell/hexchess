@@ -1,0 +1,186 @@
+{
+  "White": [
+    {
+      "rank": 1,
+      "file": 0,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 2,
+      "file": 1,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 3,
+      "file": 2,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 4,
+      "file": 3,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 5,
+      "file": 4,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 6,
+      "file": 3,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 7,
+      "file": 2,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 8,
+      "file": 1,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 9,
+      "file": 0,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 2,
+      "file": 0,
+      "Piece": "Rook"
+    },
+    {
+      "rank": 8,
+      "file": 0,
+      "Piece": "Rook"
+    },
+    {
+      "rank": 3,
+      "file": 0,
+      "Piece": "Knight"
+    },
+    {
+      "rank": 7,
+      "file": 0,
+      "Piece": "Knight"
+    },
+    {
+      "rank": 4,
+      "file": 0,
+      "Piece": "Queen"
+    },
+    {
+      "rank": 6,
+      "file": 0,
+      "Piece": "King"
+    },
+    {
+      "rank": 5,
+      "file": 0,
+      "Piece": "Bishop"
+    },
+    {
+      "rank": 5,
+      "file": 1,
+      "Piece": "Bishop"
+    },
+    {
+      "rank": 5,
+      "file": 2,
+      "Piece": "Bishop"
+    }
+  ],
+  "Black": [
+    {
+      "rank": 1,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 2,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 3,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 4,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 5,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 6,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 7,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 8,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 9,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 2,
+      "file": 7,
+      "Piece": "Rook"
+    },
+    {
+      "rank": 8,
+      "file": 7,
+      "Piece": "Rook"
+    },
+    {
+      "rank": 3,
+      "file": 8,
+      "Piece": "Knight"
+    },
+    {
+      "rank": 7,
+      "file": 8,
+      "Piece": "Knight"
+    },
+    {
+      "rank": 4,
+      "file": 9,
+      "Piece": "Queen"
+    },
+    {
+      "rank": 6,
+      "file": 9,
+      "Piece": "King"
+    },
+    {
+      "rank": 5,
+      "file": 10,
+      "Piece": "Bishop"
+    },
+    {
+      "rank": 5,
+      "file": 9,
+      "Piece": "Bishop"
+    },
+    {
+      "rank": 5,
+      "file": 8,
+      "Piece": "Bishop"
+    }
+  ]
+}
