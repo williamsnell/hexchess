@@ -61,7 +61,7 @@ fn handle_tcp_stream(mut stream: TcpStream) {
 }
 
 fn main() {
-    let websocket_server = TcpListener::bind("127.0.0.1:8080").unwrap();
+    let websocket_server = TcpListener::bind("127.0.0.1:7979").unwrap();
     let server = TcpListener::bind("127.0.0.1:7878").unwrap();
 
     spawn(move || loop {
