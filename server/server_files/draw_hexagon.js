@@ -109,7 +109,7 @@ var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 
 
 function setup_websocket() {
-  const BACKEND_URL = "ws://" + window.location.hostname + ":8080";
+  const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
   const socket = new WebSocket(BACKEND_URL);
   socket.onmessage = (msg) => parse_moves(msg.data);
   socket.onerror = (err) => console.error(err);
@@ -120,21 +120,81 @@ function setup_websocket() {
 
 var socket = setup_websocket();
 
+
+// request the board position, and display it
+const Pieces = {
+  Pawn: "Pawn",
+  Rook: "Rook",
+  Knight: "Knight",
+  Bishop: "Bishop",
+  Queen: "Queen",
+  King: "King",
+};
+
+const Color = {
+  White: "White",
+  Black: "Black",
+}
+
+function get_piece_asset(color, piece) {
+  return `assets/pieces/${piece.toLowerCase()}_${color.toLowerCase()}.svg`
+}
+
+var board = {
+  "White": [
+    {"Rank": 1,
+     "File": 3,
+     "Piece": "Pawn"}
+  ],
+  "Black": [
+    {"Rank": 1,
+     "File": 6,
+     "Piece": "Pawn"},
+     {"Rank": 1,
+      "File": 5, 
+      "Piece": "Rook"}]
+}
+
+function display_board(board) {
+  let colors = ["White", "Black"];
+  for (let i = 0; i < colors.length; i++) {
+    for (const piece of board[colors[i]]) {
+      var x, y;
+
+      [x, y] = get_hexagon_position(piece.Rank, piece.File, canvas, hex_size);
+
+      var image = new Image();
+      image.src = get_piece_asset(colors[i], piece.Piece);
+
+      image.onload = ctx.drawImage(image, x - image.width/2, y - image.height/2);
+      
+    }
+  }
+
+}
+
+display_board(board);
+
+
+
+
 function handle_click(event) {
   const mouse_x = event.offsetX;
   const mouse_y = event.offsetY;
-
+  
   draw_board();
   label_hexes(ctx, canvas, hex_size, draw_labels);
-
+  
   for (let i = 0; i < hex_positions.length; i++) {
     if (((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < (hex_size * 0.866)**2) {
       ctx.lineWidth = 0;
       var hex_x = hex_positions[i].x;
       var hex_y = hex_positions[i].y;
-
+      
       ctx.drawImage(knight, hex_x - knight.width/2, hex_y - knight.height/2);
 
+      display_board(board);
+      
       if (socket.readyState == socket.OPEN) {
         socket.send(hex_labels[`${hex_x},${hex_y}`]);
       }
