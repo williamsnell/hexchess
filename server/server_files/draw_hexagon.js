@@ -41,7 +41,7 @@ function draw_hex_callback(element, index) {
   return out;
 }
 
-function label_hexes(context, canvas, hex_size, show=true) {
+function label_hexes(context, canvas, hex_size, show = true) {
   var hexes = {};
   for (var i = 0; i < files.length; i++) {
     for (var j = 0; j <= vertical_hexagons_per_column[i] - 1; j++) {
@@ -50,9 +50,9 @@ function label_hexes(context, canvas, hex_size, show=true) {
       context.fillStyle = "#000000";
       context.font = "15px arial";
       var chess_coord = (String(files[i]).toUpperCase() + String(j + 1));
-      
+
       hexes[`${x},${y}`] = chess_coord;
-      
+
       // cubic coordinates
       var q = i;
       var r = j + i - (vertical_hexagons_per_column[i] - 6) + (i < 6 ? 0 : 5 - i);
@@ -78,7 +78,7 @@ function draw_board() {
   return positions.flat();
 }
 
-const hex_positions = draw_board();
+draw_board();
 
 function draw_dot_x_y(x, y, radius = 0.3 * hex_size) {
   ctx.beginPath();
@@ -97,10 +97,12 @@ function draw_dot(rank, file) {
   draw_dot_x_y(x, y);
 }
 
+var valid_moves = [];
+
 function parse_moves(text) {
   var payload = JSON.parse(text);
-  var moves = payload["moves"];
-  moves.forEach((val) => draw_dot(val["rank"], val["file"]));
+  valid_moves = payload["moves"];
+  valid_moves.forEach((val) => draw_dot(val["rank"], val["file"]));
   return text;
 }
 
@@ -142,17 +144,23 @@ function get_piece_asset(color, piece) {
 
 var board = {
   "White": [
-    {"Rank": 1,
-     "File": 3,
-     "Piece": "Pawn"}
+    {
+      "rank": 1,
+      "file": 3,
+      "Piece": "Pawn"
+    }
   ],
   "Black": [
-    {"Rank": 1,
-     "File": 6,
-     "Piece": "Pawn"},
-     {"Rank": 1,
-      "File": 5, 
-      "Piece": "Rook"}]
+    {
+      "rank": 1,
+      "file": 6,
+      "Piece": "Pawn"
+    },
+    {
+      "rank": 1,
+      "file": 5,
+      "Piece": "Rook"
+    }]
 }
 
 function display_board(board) {
@@ -161,50 +169,80 @@ function display_board(board) {
     for (const piece of board[colors[i]]) {
       var x, y;
 
-      [x, y] = get_hexagon_position(piece.Rank, piece.File, canvas, hex_size);
+      [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
 
       var image = new Image();
       image.src = get_piece_asset(colors[i], piece.Piece);
 
-      image.onload = ctx.drawImage(image, x - image.width/2, y - image.height/2);
-      
+      image.onload = ctx.drawImage(image, x - image.width / 2, y - image.height / 2);
+
     }
   }
-
 }
 
 display_board(board);
 
-
-
-
-function handle_click(event) {
+function process_clickables(clickable, event, target_size, func) {
   const mouse_x = event.offsetX;
   const mouse_y = event.offsetY;
-  
-  draw_board();
-  label_hexes(ctx, canvas, hex_size, draw_labels);
-  
-  for (let i = 0; i < hex_positions.length; i++) {
-    if (((mouse_x - hex_positions[i].x) ** 2 + (mouse_y - hex_positions[i].y) ** 2) < (hex_size * 0.866)**2) {
-      ctx.lineWidth = 0;
-      var hex_x = hex_positions[i].x;
-      var hex_y = hex_positions[i].y;
-      
-      ctx.drawImage(knight, hex_x - knight.width/2, hex_y - knight.height/2);
-
-      display_board(board);
-      
-      if (socket.readyState == socket.OPEN) {
-        socket.send(hex_labels[`${hex_x},${hex_y}`]);
-      }
-      else {
-        socket = setup_websocket(); 
-      }
+  for (let i = 0; i < clickable.length; i++) {
+    var x, y;
+    [x, y] = get_hexagon_position(clickable[i].rank, clickable[i].file, canvas, hex_size);
+    if (((mouse_x - x) ** 2 + (mouse_y - y) ** 2) < target_size ** 2) {
+      func(clickable[i]);
       break;
     }
   }
+}
 
+var selected_piece = null;
+
+var player_color = "Black";
+
+function show_available_moves(piece) {
+  display_board(board);
+
+  // send a message to the websocket to get the 
+  // valid moves.
+  var x, y;
+  [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
+
+  if (socket.readyState == socket.OPEN) {
+    socket.send(hex_labels[`${x},${y}`]);
+  }
+  else {
+    socket = setup_websocket();
+  }
+}
+
+function select_piece(piece) {
+  selected_piece = piece;
+  show_available_moves(piece);
+}
+
+function move_piece(piece) {
+  console.log("moving piece. send some json");
+  draw_board();
+  display_board(board);
+}
+
+
+function handle_click(event) {
+  // draw_board();
+  label_hexes(ctx, canvas, hex_size, draw_labels);
+
+  // if we haven't selected a piece, only make pieces valid click targets
+  if (selected_piece == null) {
+    process_clickables(board[player_color], event, hex_size * 0.866, select_piece);
+  }
+  
+  else {
+    process_clickables(valid_moves, event, hex_size * 0.866, move_piece);
+    // even if the user clicks an invalid hexagon, deselect the piece
+    selected_piece = null;
+    draw_board();
+    display_board(board);
+  }
 }
 
 canvas.addEventListener("click", handle_click);
