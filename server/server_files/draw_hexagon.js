@@ -108,12 +108,13 @@ function parse_moves(text) {
 
 var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 
-
+var user_id = crypto.randomUUID();
 
 function setup_websocket() {
   const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
   const socket = new WebSocket(BACKEND_URL);
-  socket.onmessage = (msg) => parse_moves(msg.data);
+  socket.addEventListener("open", () => socket.send(user_id));
+  socket.onmessage = (msg) => { console.log(msg.headers); parse_moves(msg.data); };
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
 
@@ -154,11 +155,11 @@ async function display_board(board) {
     for (const piece of board[colors[i]]) {
       promise_array.push(new Promise(resolve => {
         var x, y;
-  
+
         [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
 
         let image_size = hex_size * 1.4;
-  
+
         var image = new Image();
         image.onload = () => {
           ctx.drawImage(image, x - image_size / 2, y - image_size / 2, image_size, image_size);
@@ -231,7 +232,7 @@ function handle_click(event) {
   if (selected_piece == null) {
     process_clickables(board[player_color], event, hex_size * 0.866, select_piece);
   }
-  
+
   else {
     process_clickables(valid_moves, event, hex_size * 0.866, move_piece);
     // even if the user clicks an invalid hexagon, deselect the piece
