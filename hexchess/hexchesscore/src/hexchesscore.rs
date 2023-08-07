@@ -1,3 +1,4 @@
+use std::{fs, path::PathBuf};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -90,6 +91,21 @@ pub struct Movement {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
+}
+
+impl Board{
+    pub fn setup_default_board() -> Board {
+        let path = PathBuf::from("./server_files/starting_moves.json");
+        let data = fs::read_to_string(path).expect("unable to read file");
+        let moves: serde_json::Value = serde_json::from_str(&data).expect("Invalid JSON format");
+
+        println!("{:?}", moves);
+        let occupied_squares = HashMap::<Hexagon, Piece>::new();
+
+        Board{
+            occupied_squares: HashMap::<Hexagon, Piece>::new()
+        }
+    }
 }
 
 pub fn validate_move(movement: Movement, board: Board) -> Option<Board> {
