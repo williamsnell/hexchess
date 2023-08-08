@@ -1,6 +1,31 @@
 const vertical_hexagons_per_column = [6, 7, 8, 9, 10, 11, 10, 9, 8, 7, 6];
 const files = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "l"];
 
+export const char_to_file = {
+  "a": 0,
+  "b": 1,
+  "c": 2,
+  "d": 3,
+  "e": 4,
+  "f": 5,
+  "g": 6,
+  "h": 7,
+  "i": 8,
+  "k": 9,
+  "l": 10,
+  "A": 0,
+  "B": 1,
+  "C": 2,
+  "D": 3,
+  "E": 4,
+  "F": 5,
+  "G": 6,
+  "H": 7,
+  "I": 8,
+  "K": 9,
+  "L": 10
+};
+
 function deg2rad(x) {
   return x * Math.PI / 180;
 }

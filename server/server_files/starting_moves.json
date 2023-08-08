@@ -1,186 +1,146 @@
 {
-  "White": [
-    {
-      "rank": 1,
-      "file": 0,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 2,
-      "file": 1,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 3,
-      "file": 2,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 4,
-      "file": 3,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 5,
-      "file": 4,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 6,
-      "file": 3,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 7,
-      "file": 2,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 8,
-      "file": 1,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 9,
-      "file": 0,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 2,
-      "file": 0,
-      "Piece": "Rook"
-    },
-    {
-      "rank": 8,
-      "file": 0,
-      "Piece": "Rook"
-    },
-    {
-      "rank": 3,
-      "file": 0,
-      "Piece": "Knight"
-    },
-    {
-      "rank": 7,
-      "file": 0,
-      "Piece": "Knight"
-    },
-    {
-      "rank": 4,
-      "file": 0,
-      "Piece": "Queen"
-    },
-    {
-      "rank": 6,
-      "file": 0,
-      "Piece": "King"
-    },
-    {
-      "rank": 5,
-      "file": 0,
-      "Piece": "Bishop"
-    },
-    {
-      "rank": 5,
-      "file": 1,
-      "Piece": "Bishop"
-    },
-    {
-      "rank": 5,
-      "file": 2,
-      "Piece": "Bishop"
-    }
-  ],
-  "Black": [
-    {
-      "rank": 1,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 2,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 3,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 4,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 5,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 6,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 7,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 8,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 9,
-      "file": 6,
-      "Piece": "Pawn"
-    },
-    {
-      "rank": 2,
-      "file": 7,
-      "Piece": "Rook"
-    },
-    {
-      "rank": 8,
-      "file": 7,
-      "Piece": "Rook"
-    },
-    {
-      "rank": 3,
-      "file": 8,
-      "Piece": "Knight"
-    },
-    {
-      "rank": 7,
-      "file": 8,
-      "Piece": "Knight"
-    },
-    {
-      "rank": 4,
-      "file": 9,
-      "Piece": "Queen"
-    },
-    {
-      "rank": 6,
-      "file": 9,
-      "Piece": "King"
-    },
-    {
-      "rank": 5,
-      "file": 10,
-      "Piece": "Bishop"
-    },
-    {
-      "rank": 5,
-      "file": 9,
-      "Piece": "Bishop"
-    },
-    {
-      "rank": 5,
-      "file": 8,
-      "Piece": "Bishop"
-    }
-  ]
+  "B1": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "C2": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "D3": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "E4": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "F5": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "G4": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "H3": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "I2": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "K1": {
+    "piece_type": "Pawn",
+    "color": "White"
+  },
+  "C1": {
+    "piece_type": "Rook",
+    "color": "White"
+  },
+  "I1": {
+    "piece_type": "Rook",
+    "color": "White"
+  },
+  "D1": {
+    "piece_type": "Knight",
+    "color": "White"
+  },
+  "H1": {
+    "piece_type": "Knight",
+    "color": "White"
+  },
+  "E1": {
+    "piece_type": "Queen",
+    "color": "White"
+  },
+  "G1": {
+    "piece_type": "King",
+    "color": "White"
+  },
+  "F1": {
+    "piece_type": "Bishop",
+    "color": "White"
+  },
+  "F2": {
+    "piece_type": "Bishop",
+    "color": "White"
+  },
+  "F3": {
+    "piece_type": "Bishop",
+    "color": "White"
+  },
+  "B7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "C7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "D7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "E7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "F7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "G7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "H7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "I7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "K7": {
+    "piece_type": "Pawn",
+    "color": "Black"
+  },
+  "C8": {
+    "piece_type": "Rook",
+    "color": "Black"
+  },
+  "I8": {
+    "piece_type": "Rook",
+    "color": "Black"
+  },
+  "D9": {
+    "piece_type": "Knight",
+    "color": "Black"
+  },
+  "H9": {
+    "piece_type": "Knight",
+    "color": "Black"
+  },
+  "E10": {
+    "piece_type": "Queen",
+    "color": "Black"
+  },
+  "G10": {
+    "piece_type": "King",
+    "color": "Black"
+  },
+  "F11": {
+    "piece_type": "Bishop",
+    "color": "Black"
+  },
+  "F10": {
+    "piece_type": "Bishop",
+    "color": "Black"
+  },
+  "F9": {
+    "piece_type": "Bishop",
+    "color": "Black"
+  }
 }

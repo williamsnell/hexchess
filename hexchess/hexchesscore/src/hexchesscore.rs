@@ -1,6 +1,8 @@
+use std::fmt;
 use std::{fs, path::PathBuf};
 use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
@@ -59,7 +61,7 @@ pub fn rank_int_to_char(rank: u8) -> Option<char> {
 }
 
 
-#[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd, Serialize, Deserialize, Clone, Copy)]
+#[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd, Clone, Copy)]
 pub struct Hexagon {
     pub rank: u8,
     pub file: u8,
@@ -83,6 +85,47 @@ impl Hexagon {
     }
 }
 
+impl Serialize for Hexagon {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> 
+    where
+        S: Serializer
+    {
+        let rank_char = rank_int_to_char(self.rank).unwrap();
+        let file = self.file;
+        serializer.serialize_str(format!("{rank_char}{file}").as_str())
+    }
+}
+
+struct HexagonVisitor;
+
+impl <'de> Visitor<'de> for HexagonVisitor {
+    type Value = Hexagon;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("A valid letter/number hex chess move, e.g. A5, F10, etc.")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where 
+        E: de::Error,
+    {
+        match Hexagon::new(value) {
+            Some(val) => Ok(val),
+            None => Err(E::custom("Invalid Hexagon Chess Cell"))
+        }
+    }
+}
+
+impl <'de> Deserialize<'de> for Hexagon {
+    fn deserialize<D>(deserializer: D) -> Result<Hexagon, D::Error> 
+    where
+        D: Deserializer<'de>
+    {
+        deserializer.deserialize_str(HexagonVisitor)
+    }
+}
+
+
 pub struct Movement {
     origin: Hexagon,
     destination: Hexagon,
@@ -90,7 +133,13 @@ pub struct Movement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
-    pub occupied_squares: HashMap<Hexagon, Piece>,
+    occupied_squares: HashMap<Hexagon, Piece>,
+}
+
+impl Board {
+    fn pieces(&mut self) -> &mut HashMap<Hexagon, Piece> {
+        &mut self.occupied_squares
+    }
 }
 
 impl Board{
@@ -99,12 +148,20 @@ impl Board{
         let data = fs::read_to_string(path).expect("unable to read file");
         let moves: serde_json::Value = serde_json::from_str(&data).expect("Invalid JSON format");
 
-        println!("{:?}", moves);
+        // println!("{:?}", moves);
         let occupied_squares = HashMap::<Hexagon, Piece>::new();
 
-        Board{
+        let mut b = Board{
             occupied_squares: HashMap::<Hexagon, Piece>::new()
-        }
+        };
+
+        let mut pieces = b.pieces();
+
+        pieces.insert(Hexagon::new("A6").unwrap(), 
+            Piece { piece_type: PieceType::Knight, color: Color::Black });
+
+        println!("{:?}", serde_json::to_string(&b));
+        b
     }
 }
 

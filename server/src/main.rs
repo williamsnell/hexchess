@@ -78,6 +78,7 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                 // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
                 moves::KnightMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
             let moves_json = serde_json::to_string(&rook_moves).unwrap();
+            println!("{:?}", moves_json);
             let json = format!("{{\"moves\": {moves_json}}}");
             websocket.send(Text(json)).unwrap();
         }
