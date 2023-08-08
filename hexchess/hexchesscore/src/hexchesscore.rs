@@ -133,7 +133,7 @@ pub struct Movement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
-    occupied_squares: HashMap<Hexagon, Piece>,
+    pub occupied_squares: HashMap<Hexagon, Piece>,
 }
 
 impl Board {

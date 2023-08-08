@@ -39,8 +39,10 @@ impl SessionHandler {
         self.sessions.get(&user_id)
     }
 
-    fn add_session(&mut self, user_id: Uuid) {
-        self.sessions.insert(user_id, Board::setup_default_board());
+    fn add_session(&mut self, user_id: Uuid) -> &Board {
+        let board = Board::setup_default_board();
+        self.sessions.insert(user_id, board);
+        self.sessions.get(&user_id).expect("board wasn't added for some reason")
     }
 }
 
@@ -56,32 +58,56 @@ impl SessionHandler {
 // }
 
 fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<SessionHandler>>) {
-    let binding = websocket.read().unwrap();
-    let user_id = Uuid::parse_str(binding.to_text().unwrap()).unwrap();
-    println!("here");
-    let mut session = sessions.lock().unwrap();
-
-    if let Some(valid_session) = session.get_session_if_exists(user_id) {
-        println!("here");
-        let board = valid_session;
-    } else {
-        session.add_session(user_id);
-    }
-
-    drop(session);
-
     loop {
+        let message = websocket.read().unwrap();
+
+        println!("{:?}", message);
+
+        if let Text(message) = message {
+            let user_id = &message[..36];
+            let hex = &message[37..];
+            if let Ok(user_id) = Uuid::parse_str(user_id) {
+                println!("valid user id");
+                // get the user's stored board state
+                let mut session = sessions.lock().unwrap();
+    
+                let board: &Board;
+                
+                if let Some(valid_session) = session.get_session_if_exists(user_id) {
+                    board = valid_session;                
+                } else {
+                    board = session.add_session(user_id);
+                }
+                
+                // try and process the move
+                if let Some(hex_move) = Hexagon::new(hex) {
+                    if let Some(piece) = board.occupied_squares.get(&hex_move) {
+                        println!("{:?}", piece.piece_type);
+                        // match piece type to valid moves
+                        let moves: Vec<Hexagon> = moves::RookMoves::new(hex_move).collect();
+                        let moves_json = serde_json::to_string(&moves).unwrap();
+                        println!("{:?}", moves_json);
+                        let json = format!("{{\"moves\": {moves_json}}}");
+                        websocket.send(Text(json)).unwrap();
+                    }
+                }
+    
+            
+                drop(session);
+            }
+        }
         let msg = websocket.read().unwrap();
         println!("{:?}", msg);
-        if msg.is_text() {
-            let rook_moves: Vec<Hexagon> =
-                // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
-                moves::KnightMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
-            let moves_json = serde_json::to_string(&rook_moves).unwrap();
-            println!("{:?}", moves_json);
-            let json = format!("{{\"moves\": {moves_json}}}");
-            websocket.send(Text(json)).unwrap();
-        }
+        // if msg.is_text() {
+        //     // let piece = board;
+        //     let rook_moves: Vec<Hexagon> =
+        //         // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+        //         moves::KnightMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
+        //     let moves_json = serde_json::to_string(&rook_moves).unwrap();
+        //     println!("{:?}", moves_json);
+        //     let json = format!("{{\"moves\": {moves_json}}}");
+        //     websocket.send(Text(json)).unwrap();
+        // }
     }
 }
 

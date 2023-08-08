@@ -113,7 +113,7 @@ var user_id = crypto.randomUUID();
 function setup_websocket() {
   const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
   const socket = new WebSocket(BACKEND_URL);
-  socket.addEventListener("open", () => socket.send(user_id));
+  // socket.addEventListener("open", () => socket.send(user_id));
   socket.onmessage = (msg) => { console.log(msg.headers); parse_moves(msg.data); };
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
@@ -206,7 +206,7 @@ function show_available_moves(piece) {
   [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
 
   if (socket.readyState == socket.OPEN) {
-    socket.send(hex_labels[`${x},${y}`]);
+    socket.send(user_id + hex_labels[`${x},${y}`]);
   }
   else {
     socket = setup_websocket();
@@ -260,3 +260,4 @@ function handle_click(event) {
 
 canvas.addEventListener("click", handle_click);
 
+console.log(user_id)
