@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::{fs, path::PathBuf};
 
-use crate::moves::{self, SlidingMoves};
+use crate::moves::{self, SlidingMoves, pawn_moves_not_attacking, KnightMoves};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
@@ -182,6 +182,20 @@ fn get_blocking_sliding_moves(mut moves: SlidingMoves, piece: &Piece, board: &Bo
     valid_moves
 }
 
+fn get_valid_knight_moves(mut moves: moves::KnightMoves, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+    let mut valid_moves = Vec::<Hexagon>::new();
+    for hex in moves {
+        if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
+            if occupied_hex.color != piece.color {
+                valid_moves.push(hex);
+            };
+        } else {
+            valid_moves.push(hex);
+        }
+    }
+    valid_moves
+}
+
 pub fn get_valid_moves(hexagon: &Hexagon, piece: &Piece, board: &Board) -> Vec<Hexagon> {
     // get valid pieces
     // check for friendly pieces blocking stuff
@@ -198,7 +212,9 @@ pub fn get_valid_moves(hexagon: &Hexagon, piece: &Piece, board: &Board) -> Vec<H
     let valid_moves = match piece.piece_type {
         PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => {
             get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board)
-        }
+        },
+        PieceType::Pawn => {moves::pawn_moves(hexagon, &piece.color, board)},
+        PieceType::Knight => {get_valid_knight_moves(KnightMoves::new(hexagon), piece, board)}
 
         _ => Vec::<Hexagon>::new(),
     };

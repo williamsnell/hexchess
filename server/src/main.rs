@@ -67,7 +67,6 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
             let user_id = &message[..36];
             let hex = &message[36..];
             if let Ok(user_id) = Uuid::parse_str(user_id) {
-                println!("valid user id");
                 // get the user's stored board state
                 let mut session = sessions.lock().unwrap();
     
@@ -81,13 +80,10 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                 
                 // try and process the move
                 if let Some(hex_move) = Hexagon::new(hex) {
-                    println!("{:?}", hex_move);
                     if let Some(piece) = board.occupied_squares.get(&hex_move) {
-                        println!("{:?}", piece.piece_type);
                         // match piece type to valid moves
                         let moves = get_valid_moves(&hex_move, &piece, &board);
                         let moves_json = serde_json::to_string(&moves).unwrap();
-                        println!("{:?}", moves_json);
                         let json = format!("{{\"moves\": {moves_json}}}");
                         websocket.send(Text(json)).unwrap();
                     }

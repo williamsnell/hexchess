@@ -4,7 +4,7 @@ use std::{
     iter::zip,
 };
 
-use crate::{hexchesscore::{Hexagon, Color, Piece}, PieceType};
+use crate::{hexchesscore::{Hexagon, Color, Piece, Board}, PieceType};
 
 pub fn get_rank_length(rank: u8) -> Option<u8> {
     match rank {
@@ -202,7 +202,9 @@ impl SlidingMoves {
         let mut move_list: Vec<Vec<Hexagon>> = Vec::new();
     
         for mut arm in king_moves {
-            move_list.push(vec![arm.pop().unwrap()]);
+            if let Some(arm_val) = arm.pop() {
+                move_list.push(vec![arm_val]);
+            }
         }
     
         // this is likely very slow, but it's quick to code...
@@ -239,7 +241,7 @@ pub struct KnightMoves {
 }
 
 impl KnightMoves {
-    pub fn new(position: Hexagon) -> KnightMoves {
+    pub fn new(position: &Hexagon) -> KnightMoves {
         let (q, r) = chess_to_axial_coords(&position);
         let s = calc_s(q, r);
 
@@ -293,7 +295,7 @@ impl Iterator for KnightMoves {
 }
 
 
-pub fn pawn_moves_not_attacking(hexagon: Hexagon, color: Color) -> Vec<Hexagon> {
+pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     let mut moves = Vec::<Hexagon>::new();
     let (q, r) = chess_to_axial_coords(&hexagon);
     let s = calc_s(q, r);
@@ -317,6 +319,52 @@ pub fn pawn_moves_not_attacking(hexagon: Hexagon, color: Color) -> Vec<Hexagon> 
 }
 
 
-pub fn pawn_moves_attacking(hexagon: Hexagon) -> Vec<Hexagon> {
-    Vec::<Hexagon>::new()
+pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
+    let mut valid_moves = Vec::<Hexagon>::new();
+    let (q, r) = chess_to_axial_coords(&hexagon);
+    let s = calc_s(q, r);
+    // white attacking
+    if matches!(color, Color::White) & (s > 1) {
+        if q > 0 {
+            valid_moves.push(axial_to_chess_coords(q - 1, r));
+        }
+        if q < 10 {
+            valid_moves.push(axial_to_chess_coords(q + 1, r + 1))
+        }
+    } else if r > 0 {
+        if q > 0 {
+            valid_moves.push(axial_to_chess_coords(q - 1, r - 1));
+        }
+        if q < 10 {
+            valid_moves.push(axial_to_chess_coords(q + 1, r))
+        }
+    }
+    valid_moves
+}
+
+pub fn pawn_moves(hexagon: &Hexagon, color: &Color, board: &Board) -> Vec<Hexagon> {
+    let mut valid_moves = Vec::<Hexagon>::new();
+
+    let attacking = pawn_moves_attacking(hexagon, color);
+    let not_attacking = pawn_moves_not_attacking(hexagon, color);
+
+    for hex in attacking {
+        if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
+            println!("{:?}", &occupied_hex.color);
+            if &occupied_hex.color != color {
+                valid_moves.push(hex);
+            };
+        }
+    }
+
+    for hex in not_attacking {
+        if let Some(_) = board.occupied_squares.get(&hex) {}
+        else {
+            valid_moves.push(hex);
+        }
+    }
+
+    valid_moves
+
+
 }
