@@ -4,7 +4,7 @@ use std::{
     iter::zip,
 };
 
-use crate::hexchesscore::Hexagon;
+use crate::{hexchesscore::{Hexagon, Color, Piece}, PieceType};
 
 pub fn get_rank_length(rank: u8) -> Option<u8> {
     match rank {
@@ -57,12 +57,25 @@ pub fn axial_to_chess_coords(q: u8, r: u8) -> Hexagon {
     }
 }
 
-pub struct RookMoves {
+// Sliding moves are all the moves that raycast out from the piece position and are blocked by any piece,
+// and can attack the first enemy piece they see
+pub struct SlidingMoves {
     move_list: Vec<Vec<Hexagon>>,
 }
 
-impl RookMoves {
-    pub fn new(position: Hexagon) -> RookMoves {
+impl SlidingMoves {
+    pub fn new(position: &Hexagon, piece: &Piece) -> SlidingMoves {
+        let moves = match piece.piece_type {
+            PieceType::Rook => SlidingMoves::new_rook_moves(position),
+            PieceType::Bishop => SlidingMoves::new_bishop_moves(position),
+            PieceType::Queen => SlidingMoves::new_queen_moves(position),
+            PieceType::King => SlidingMoves::new_king_moves(position),
+            _ => Vec::<Vec<Hexagon>>::new()
+        };
+        SlidingMoves { move_list: moves }
+    }
+
+    pub fn new_rook_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
         // Get the moves a rook could make, from the current position, assuming
         // no other pieces. These moves spiral out from the rook, so closer hexagons
         // are returned earlier in the result
@@ -114,49 +127,17 @@ impl RookMoves {
                 )
             })
             .collect();
-
-        RookMoves {
-            move_list: vec![
+            vec![
                 arm_top,
                 arm_bottom,
                 arm_top_left,
                 arm_bottom_right,
                 arm_bottom_left,
                 arm_top_right,
-            ],
-        }
+            ]
     }
-    pub fn drop_arm(&mut self) {
-        // drop the current arm of valid rook moves
-        // e.g. if a piece is blocking the remainder of the arm
-        self.move_list.pop();
-    }
-}
 
-impl Iterator for RookMoves {
-    type Item = Hexagon;
-    fn next(&mut self) -> Option<Hexagon> {
-        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
-        //     Some(output)
-        if let Some(moves) = self.move_list.last_mut() {
-            if let Some(output) = moves.pop() {
-                Some(output)
-            } else {
-                self.move_list.pop();
-                self.next()
-            }
-        } else {
-            None
-        }
-    }
-}
-
-pub struct BishopMoves {
-    move_list: Vec<Vec<Hexagon>>,
-}
-
-impl BishopMoves {
-    pub fn new(position: Hexagon) -> BishopMoves {
+    pub fn new_bishop_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
         // Get the moves a bishop could make, from the current position, assuming
         // no other pieces. These moves spiral out from the bishop, so closer hexagons
         // are returned earlier in the result
@@ -192,118 +173,54 @@ impl BishopMoves {
                 .map(|(_x, (y, z))| axial_to_chess_coords(y, z)).rev()
                 .collect();
         
-        BishopMoves {
-            move_list: vec![
-                arm_left,
-                arm_right,
-                arm_down_left,
-                arm_up_right,
-                arm_up_left,
-                arm_down_right,
-                ],
-        }
+        vec![
+            arm_left,
+            arm_right,
+            arm_down_left,
+            arm_up_right,
+            arm_up_left,
+            arm_down_right,
+            ]
     }
-    pub fn drop_arm(&mut self) {
-        // drop the current arm of valid rook moves
-        // e.g. if a piece is blocking the remainder of the arm
-        self.move_list.pop();
-    }
-}
 
-impl Iterator for BishopMoves {
-    type Item = Hexagon;
-    fn next(&mut self) -> Option<Hexagon> {
-        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
-        //     Some(output)
-        if let Some(moves) = self.move_list.last_mut() {
-            if let Some(output) = moves.pop() {
-                Some(output)
-            } else {
-                self.move_list.pop();
-                self.next()
-            }
-        } else {
-            None
-        }
-    }
-}
-
-pub struct QueenMoves {
-    move_list: Vec<Vec<Hexagon>>,
-}
-
-impl QueenMoves {
-    pub fn new(position: Hexagon) -> QueenMoves {
+    pub fn new_queen_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
         // Get the moves a bishop could make, from the current position, assuming
         // no other pieces. These moves spiral out from the bishop, so closer hexagons
         // are returned earlier in the result
 
-        let mut queen_moves = BishopMoves::new(position).move_list;
-        let mut rook_moves = RookMoves::new(position).move_list;
+        let mut queen_moves = SlidingMoves::new_bishop_moves(position);
+        let mut rook_moves = SlidingMoves::new_rook_moves(position);
         queen_moves.append(&mut rook_moves);
-
-        QueenMoves {
-            move_list: queen_moves,
-        }
+        queen_moves
     }
-    pub fn drop_arm(&mut self) {
-        // drop the current arm of valid rook moves
-        // e.g. if a piece is blocking the remainder of the arm
-        self.move_list.pop();
-    }
-}
 
-impl Iterator for QueenMoves {
-    type Item = Hexagon;
-    fn next(&mut self) -> Option<Hexagon> {
-        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
-        //     Some(output)
-        if let Some(moves) = self.move_list.last_mut() {
-            if let Some(output) = moves.pop() {
-                Some(output)
-            } else {
-                self.move_list.pop();
-                self.next()
-            }
-        } else {
-            None
-        }
-    }
-}
-
-pub struct KingMoves {
-    move_list: Vec<Vec<Hexagon>>,
-}
-
-impl KingMoves {
-    pub fn new(position: Hexagon) -> KingMoves {
-        let king_moves = QueenMoves::new(position);
-        
+    // the king doesn't really belong here, since he doesn't really have
+    // arms to drop
+    pub fn new_king_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
+        let king_moves = SlidingMoves::new_queen_moves(position);
+            
         let mut move_list: Vec<Vec<Hexagon>> = Vec::new();
-
-        for mut arm in king_moves.move_list {
+    
+        for mut arm in king_moves {
             move_list.push(vec![arm.pop().unwrap()]);
         }
-
+    
         // this is likely very slow, but it's quick to code...
         // get the first move from each of the queen's arms
-        KingMoves {
-            move_list: move_list
-        }
+        move_list
     }
+
     pub fn drop_arm(&mut self) {
-        // drop the current arm of valid moves
-        // In this case, that is just removing a single move.
+        // drop the current arm of valid sliding moves
         // e.g. if a piece is blocking the remainder of the arm
         self.move_list.pop();
     }
 }
 
-impl Iterator for KingMoves {
+
+impl Iterator for SlidingMoves {
     type Item = Hexagon;
     fn next(&mut self) -> Option<Hexagon> {
-        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
-        //     Some(output)
         if let Some(moves) = self.move_list.last_mut() {
             if let Some(output) = moves.pop() {
                 Some(output)
@@ -373,4 +290,33 @@ impl Iterator for KnightMoves {
             None
         }
     }
+}
+
+
+pub fn pawn_moves_not_attacking(hexagon: Hexagon, color: Color) -> Vec<Hexagon> {
+    let mut moves = Vec::<Hexagon>::new();
+    let (q, r) = chess_to_axial_coords(&hexagon);
+    let s = calc_s(q, r);
+    // if pawn is on starting rank, it can double jump
+    if matches!(color, Color::White) & (((s == 6) & (q < 6)) | ((r == 4) & (q > 5))) {
+        moves.push(axial_to_chess_coords(q, r + 2));
+    } else if matches!(color, Color::Black) & (((s == 4) & (q > 4)) | (r == 6) & (q < 6)) {
+        moves.push(axial_to_chess_coords(q, r - 2));
+    }
+
+    // add the normal, single forward move
+    if (q >= 0) & (s >= 0) {
+        moves.push(axial_to_chess_coords(q, if matches!(color, Color::White) {r + 1} else {r - 1}));
+    }
+
+    // ignore en passant for now, it's going to require a decently big restructure
+
+    // ignore promotion for now, again a future headache
+
+    moves
+}
+
+
+pub fn pawn_moves_attacking(hexagon: Hexagon) -> Vec<Hexagon> {
+    Vec::<Hexagon>::new()
 }

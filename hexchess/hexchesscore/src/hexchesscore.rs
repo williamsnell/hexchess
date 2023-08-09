@@ -1,8 +1,10 @@
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::HashMap;
 use std::fmt;
 use std::{fs, path::PathBuf};
-use std::collections::HashMap;
-use serde::de::{self, Visitor};
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+
+use crate::moves::{self, SlidingMoves};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
@@ -14,7 +16,7 @@ pub enum PieceType {
     King,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Color {
     White,
     Black,
@@ -39,7 +41,7 @@ pub fn rank_char_to_int(rank: char) -> Option<u8> {
         'i' => Some(8),
         'k' => Some(9),
         'l' => Some(10),
-        _ => None
+        _ => None,
     }
 }
 
@@ -59,7 +61,6 @@ pub fn rank_int_to_char(rank: u8) -> Option<char> {
         _ => None,
     }
 }
-
 
 #[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd, Clone, Copy)]
 pub struct Hexagon {
@@ -86,19 +87,19 @@ impl Hexagon {
 }
 
 impl Serialize for Hexagon {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> 
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         let rank_char = rank_int_to_char(self.rank).unwrap();
-        let file = self.file;
+        let file = self.file + 1;
         serializer.serialize_str(format!("{rank_char}{file}").as_str())
     }
 }
 
 struct HexagonVisitor;
 
-impl <'de> Visitor<'de> for HexagonVisitor {
+impl<'de> Visitor<'de> for HexagonVisitor {
     type Value = Hexagon;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -106,25 +107,24 @@ impl <'de> Visitor<'de> for HexagonVisitor {
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where 
+    where
         E: de::Error,
     {
         match Hexagon::new(value) {
             Some(val) => Ok(val),
-            None => Err(E::custom("Invalid Hexagon Chess Cell"))
+            None => Err(E::custom("Invalid Hexagon Chess Cell")),
         }
     }
 }
 
-impl <'de> Deserialize<'de> for Hexagon {
-    fn deserialize<D>(deserializer: D) -> Result<Hexagon, D::Error> 
+impl<'de> Deserialize<'de> for Hexagon {
+    fn deserialize<D>(deserializer: D) -> Result<Hexagon, D::Error>
     where
-        D: Deserializer<'de>
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(HexagonVisitor)
     }
 }
-
 
 pub struct Movement {
     origin: Hexagon,
@@ -142,27 +142,70 @@ impl Board {
     }
 }
 
-impl Board{
+impl Board {
     pub fn setup_default_board() -> Board {
         let path = PathBuf::from("./server_files/starting_moves.json");
         let data = fs::read_to_string(path).expect("unable to read file");
-        let moves: serde_json::Value = serde_json::from_str(&data).expect("Invalid JSON format");
-
-        // println!("{:?}", moves);
-        let occupied_squares = HashMap::<Hexagon, Piece>::new();
-
-        let mut b = Board{
-            occupied_squares: HashMap::<Hexagon, Piece>::new()
-        };
-
-        let mut pieces = b.pieces();
-
-        pieces.insert(Hexagon::new("A6").unwrap(), 
-            Piece { piece_type: PieceType::Knight, color: Color::Black });
-
-        println!("{:?}", serde_json::to_string(&b));
-        b
+        let moves: HashMap<Hexagon, Piece> =
+            serde_json::from_str(&data).expect("Invalid JSON format");
+        Board {
+            occupied_squares: moves,
+        }
     }
+}
+
+pub fn is_king_in_check(board: Board) -> bool {
+    true
+}
+
+// pub fn get_valid_moves_without_checks(hexagon: Hexagon, piece: Piece, board: Board) -> Vec<Hexagon> {
+//     // checking for check involves checking all the valid moves for attacking pieces,
+//     // so break out the functionality here
+// }
+
+fn get_blocking_sliding_moves(mut moves: SlidingMoves, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+    let mut valid_moves = Vec::<Hexagon>::new();
+
+    while let Some(hexagon) = moves.next() {
+        if let Some(occupied_hex) = board.occupied_squares.get(&hexagon) {
+            if occupied_hex.color != piece.color {
+                valid_moves.push(hexagon);
+            };
+            // regardless of if the color matched or not, this arm is now blocked by
+            // the piece
+            moves.drop_arm();
+        } else {
+            valid_moves.push(hexagon);
+        }
+    }
+
+    valid_moves
+}
+
+pub fn get_valid_moves(hexagon: &Hexagon, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+    // get valid pieces
+    // check for friendly pieces blocking stuff
+    // check for enemy pieces allowing captures
+    // let valid_moves = match piece.piece_type {
+    //     PieceType::Pawn => moves::pawn_moves_not_attacking(hexagon, piece.color),
+    //     PieceType::Bishop => BishopMoves::new(hexagon),
+    //     PieceType::Knight => KnightMoves::new(hexagon),
+    //     PieceType::King => KingMoves::new(hexagon),
+    //     PieceType::Queen => QueenMoves::new(hexagon),
+    //     PieceType::Rook => RookMoves::new(hexagon),
+    //     PieceType
+    // }
+    let valid_moves = match piece.piece_type {
+        PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => {
+            get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board)
+        }
+
+        _ => Vec::<Hexagon>::new(),
+    };
+
+    // validate the king is not in check for any of the moves
+
+    valid_moves
 }
 
 pub fn validate_move(movement: Movement, board: Board) -> Option<Board> {

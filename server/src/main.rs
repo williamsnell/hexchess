@@ -1,4 +1,4 @@
-use hexchesscore::{moves, Board, Hexagon};
+use hexchesscore::{moves, Board, Hexagon, get_valid_moves};
 use tungstenite::http::HeaderValue;
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
@@ -65,7 +65,7 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
 
         if let Text(message) = message {
             let user_id = &message[..36];
-            let hex = &message[37..];
+            let hex = &message[36..];
             if let Ok(user_id) = Uuid::parse_str(user_id) {
                 println!("valid user id");
                 // get the user's stored board state
@@ -81,10 +81,11 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                 
                 // try and process the move
                 if let Some(hex_move) = Hexagon::new(hex) {
+                    println!("{:?}", hex_move);
                     if let Some(piece) = board.occupied_squares.get(&hex_move) {
                         println!("{:?}", piece.piece_type);
                         // match piece type to valid moves
-                        let moves: Vec<Hexagon> = moves::RookMoves::new(hex_move).collect();
+                        let moves = get_valid_moves(&hex_move, &piece, &board);
                         let moves_json = serde_json::to_string(&moves).unwrap();
                         println!("{:?}", moves_json);
                         let json = format!("{{\"moves\": {moves_json}}}");
@@ -96,8 +97,6 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                 drop(session);
             }
         }
-        let msg = websocket.read().unwrap();
-        println!("{:?}", msg);
         // if msg.is_text() {
         //     // let piece = board;
         //     let rook_moves: Vec<Hexagon> =
