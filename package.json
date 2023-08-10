@@ -1,0 +1,24 @@
+{
+  "name": "hexchess",
+  "version": "1.0.0",
+  "description": "Hexagonal Chessagonal",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williamsnell/hexchess.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/williamsnell/hexchess/issues"
+  },
+  "homepage": "https://github.com/williamsnell/hexchess#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.1.0",
+    "@typescript-eslint/parser": "^6.1.0",
+    "eslint": "^8.45.0"
+  }
+}
