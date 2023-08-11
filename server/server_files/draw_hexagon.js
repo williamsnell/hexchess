@@ -99,11 +99,22 @@ function draw_dot(rank, file) {
 
 var valid_moves = [];
 
-function parse_moves(text) {
-  var payload = JSON.parse(text);
-  valid_moves = payload["moves"];
-  valid_moves.forEach((val) => { let { rank, file } = parse_hexagon_string(val); draw_dot(rank, file);});
-  return text;
+function parse_moves(moves) {
+  valid_moves = moves;
+  valid_moves.forEach((val) => { let { rank, file } = parse_hexagon_string(val); draw_dot(rank, file); });
+}
+
+var board;
+
+function handle_incoming_message(message) {
+  var payload = JSON.parse(message.data);
+  if (payload.op == "ValidMoves") {
+    console.log(payload);
+    parse_moves(payload.moves);
+  } else if (payload.op == "BoardState") {
+    board = payload.board;
+    draw_pieces_from_board_state(payload.board);
+  }
 }
 
 var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
@@ -113,7 +124,8 @@ var user_id = crypto.randomUUID();
 function setup_websocket() {
   const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
   const socket = new WebSocket(BACKEND_URL);
-  // socket.addEventListener("open", () => socket.send(user_id));
+  socket.onmessage = (message) => handle_incoming_message(message);
+  socket.addEventListener("open", () => console.log("Socket Open"));
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
 
@@ -143,38 +155,42 @@ function get_piece_asset(color, piece) {
   return `assets/pieces/${piece.toLowerCase()}_${color.toLowerCase()}.svg`;
 }
 
-var board;
 
-fetch("starting_moves.json").then((res) => res.json()).then(res => board = res).then((res) => display_board(res));
+// fetch("starting_moves.json").then((res) => res.json()).then(res => board = res).then((res) => display_board(res));
 
-async function display_board(board) {
+async function get_pieces() {
   const promise_array = [];
-  const image_array = [];
-  for (const [position, piece] of Object.entries(board)) {
-    promise_array.push(new Promise(resolve => {
-      let { rank, file } = parse_hexagon_string(position);
+  const image_array = {};
 
-      var x, y;
-
-      [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
-
-      let image_size = hex_size * 1.4;
-
-      var image = new Image();
-      image.onload = () => {
-        ctx.drawImage(image, x - image_size / 2, y - image_size / 2, image_size, image_size);
-        resolve();
-      };
-
-      image.src = get_piece_asset(piece.color, piece.piece_type);
-      image_array.push(image);
-
-    }));
+  for (var color in Color) {
+    for (var piece in Pieces) {
+      promise_array.push(new Promise(resolve => {
+        var image = new Image();
+        image.onload = () => resolve();
+        image.src = get_piece_asset(color, piece);
+        image_array[`${color},${piece}`] = image;
+      }));
+    }
   }
-
   await Promise.all(promise_array); // wait for all images to load
+  return image_array;
 }
 
+var images = await get_pieces();
+
+function draw_pieces_from_board_state(board) {
+  for (const [position, piece] of Object.entries(board.occupied_squares)) {
+    let { rank, file } = parse_hexagon_string(position);
+
+    var x, y;
+
+    [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
+
+    let image_size = hex_size * 1.4;
+    let image = images[`${piece.color},${piece.piece_type}`];
+    ctx.drawImage(image, x - image_size / 2, y - image_size / 2, image_size, image_size);
+  }
+}
 
 function parse_hexagon_string(position) {
   let rank = char_to_file[position[0]];
@@ -205,17 +221,17 @@ function show_available_moves(piece) {
   var x, y;
   [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
 
-  socket.onmessage = (msg) => { parse_moves(msg.data); };
+  // socket.onmessage = (msg) => { parse_moves(msg.data); };
 
-  if (socket.readyState == socket.OPEN) {
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  else {
     socket.send(
       `{"op": "GetMoves",
         "user_id": "${user_id}",
         "hexagon": "${hex_labels[`${x},${y}`]}"}`
     );
-  }
-  else {
-    socket = setup_websocket();
   }
 }
 
@@ -233,27 +249,35 @@ function move_piece(destination_hex) {
   [x, y] = get_hexagon_position(selected_piece.rank, selected_piece.file, canvas, hex_size);
 
   //
-  socket.onmessage = (msg) => {draw_board(); display_board(JSON.parse(msg.data).occupied_squares);};
+  // socket.onmessage = (msg) => { draw_board(); draw_pieces_from_board_state(JSON.parse(msg.data).occupied_squares); };
 
 
-  if (socket.readyState == socket.OPEN) {
-    socket.send(
-      `{"op": "RegisterMove",
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  socket.send(
+    `{"op": "RegisterMove",
         "user_id": "${user_id}",
         "start_hexagon": "${hex_labels[`${x},${y}`]}",
         "final_hexagon": "${hex_labels[`${dest_x},${dest_y}`]}"}`
-    );
-  }
-  else {
-    socket = setup_websocket();
-  }
+  );
   draw_board();
-  display_board(board);
+  request_board_state();
   if (player_color == "Black") {
     player_color = "White";
   } else {
     player_color = "Black";
   }
+}
+
+function request_board_state() {
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  socket.send(
+    `{"op": "GetBoard",
+      "user_id": "${user_id}"}`
+  );
 }
 
 function get_matching_board_pieces(board, color) {
@@ -263,38 +287,25 @@ function get_matching_board_pieces(board, color) {
   return matching_pieces;
 }
 
-// function request_new_board() {
-//   if (socket.readyState == socket.OPEN) {
-//     socket.send(
-//       `{"op": "RequestNewBoard",
-//         "user_id": "${user_id}"}`
-//     );
-//   }
-//   else {
-//     socket = setup_websocket();
-//   }
-//   draw_board();
-//   display_board(board);
-// }
-
-
 function handle_click(event) {
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
   // if we haven't selected a piece, only make pieces valid click targets
   if (selected_piece == null) {
-    process_clickables(Object.values(get_matching_board_pieces(board, player_color)), event, hex_size * 0.866, select_piece);
+    process_clickables(Object.values(get_matching_board_pieces(board.occupied_squares, player_color)), event, hex_size * 0.866, select_piece);
   }
 
   else {
     let moves = [];
-    valid_moves.forEach((x) => { let { rank, file } = parse_hexagon_string(x); moves.push({ "rank": rank, "file": file }); })
+    valid_moves.forEach((x) => { let { rank, file } = parse_hexagon_string(x); moves.push({ "rank": rank, "file": file }); });
     process_clickables(moves, event, hex_size * 0.866, move_piece);
     // even if the user clicks an invalid hexagon, deselect the piece
     selected_piece = null;
     draw_board();
-    display_board(board);
+    request_board_state();
   }
 }
+
+request_board_state();
 
 canvas.addEventListener("click", handle_click);

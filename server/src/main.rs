@@ -30,9 +30,17 @@ pub struct SessionHandler {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "op")]
-enum Message {
+enum IncomingMessage {
+    GetBoard { user_id: String},
     GetMoves { user_id: String, hexagon: Hexagon},
     RegisterMove {user_id: String, start_hexagon: Hexagon, final_hexagon: Hexagon},
+}
+
+#[derive(Serialize, Debug)]
+#[serde(tag = "op")]
+enum OutgoingMessage<'a> {
+    ValidMoves { moves: &'a Vec<Hexagon>},
+    BoardState { board: &'a Board}
 }
 
 impl SessionHandler {
@@ -56,13 +64,32 @@ impl SessionHandler {
 fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<SessionHandler>>) {
     loop {
         let message = websocket.read().unwrap();
+        println!("{:?}", message);
 
         if let Text(message) = message {
-            println!("{:?}", message);
-            let decoded: Message = serde_json::from_str(message.as_str()).unwrap();
+            let decoded: IncomingMessage = serde_json::from_str(message.as_str()).unwrap();
 
             match decoded {
-                Message::GetMoves { user_id, hexagon } => {          
+                IncomingMessage::GetBoard { user_id } => {
+                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                    let mut session = sessions.lock().unwrap();
+    
+                    let board: &Board;
+                    
+                    if let Some(valid_session) = session.get_session_if_exists(user_id) {
+                        board = valid_session;                
+                    } else {
+                        board = session.add_session(user_id);
+                    }
+                    let message = OutgoingMessage::BoardState { board: board };
+                    if let Ok(new_board_state) = serde_json::to_string(&message) {
+                        websocket.send(Text(new_board_state));      
+                    } else {
+                        eprintln!("Failed to send board state");
+                    }
+                    drop(session);
+                },
+                IncomingMessage::GetMoves { user_id, hexagon } => {          
                     let user_id = Uuid::parse_str(&user_id).unwrap();      
                     let mut session = sessions.lock().unwrap();
     
@@ -78,12 +105,14 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                     if let Some(piece) = board.occupied_squares.get(&hexagon) {
                         // match piece type to valid moves
                         let moves = get_valid_moves(&hexagon, &piece, &board);
-                        let moves_json = serde_json::to_string(&moves).unwrap();
-                        let json = format!("{{\"moves\": {moves_json}}}");
-                        websocket.send(Text(json)).unwrap();
+
+                        let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
+                        // let moves_json = serde_json::to_string(&moves).unwrap();
+                        // let json = format!("{{\"op\": \"ValidMoves\", \"moves\": {moves_json}}}");
+                        websocket.send(Text(serde_json::to_string(&outgoing).unwrap())).unwrap();
                     }      
                     drop(session);},
-                Message::RegisterMove { user_id, start_hexagon, final_hexagon } => {
+                IncomingMessage::RegisterMove { user_id, start_hexagon, final_hexagon } => {
                     let user_id = Uuid::parse_str(&user_id).unwrap();      
                     let mut session = sessions.lock().unwrap();
     
@@ -104,10 +133,6 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                             register_move(&start_hexagon, &final_hexagon, board);
                         }
                     }
-
-                    // send back the board state
-                    let new_board_state = serde_json::to_string(board).expect("failed to serialize board");
-                    websocket.send(Text(new_board_state));      
                     drop(session);
                 }
             }
