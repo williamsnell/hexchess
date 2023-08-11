@@ -102,7 +102,7 @@ var valid_moves = [];
 function parse_moves(text) {
   var payload = JSON.parse(text);
   valid_moves = payload["moves"];
-  valid_moves.forEach((val) => {let {rank, file} = parse_hexagon_string(val); draw_dot(rank, file)});
+  valid_moves.forEach((val) => { let { rank, file } = parse_hexagon_string(val); draw_dot(rank, file);});
   return text;
 }
 
@@ -114,7 +114,6 @@ function setup_websocket() {
   const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
   const socket = new WebSocket(BACKEND_URL);
   // socket.addEventListener("open", () => socket.send(user_id));
-  socket.onmessage = (msg) => { console.log(msg.headers); parse_moves(msg.data); };
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
 
@@ -137,7 +136,8 @@ const Pieces = {
 const Color = {
   White: "White",
   Black: "Black",
-}
+};
+
 
 function get_piece_asset(color, piece) {
   return `assets/pieces/${piece.toLowerCase()}_${color.toLowerCase()}.svg`;
@@ -205,8 +205,14 @@ function show_available_moves(piece) {
   var x, y;
   [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
 
+  socket.onmessage = (msg) => { parse_moves(msg.data); };
+
   if (socket.readyState == socket.OPEN) {
-    socket.send(user_id + hex_labels[`${x},${y}`]);
+    socket.send(
+      `{"op": "GetMoves",
+        "user_id": "${user_id}",
+        "hexagon": "${hex_labels[`${x},${y}`]}"}`
+    );
   }
   else {
     socket = setup_websocket();
@@ -219,7 +225,28 @@ function select_piece(piece) {
 }
 
 function move_piece(destination_hex) {
-  console.log("moving piece. send some json", selected_piece, destination_hex);
+  // send a message to register a piece moving
+  var dest_x, dest_y;
+  [dest_x, dest_y] = get_hexagon_position(destination_hex.rank, destination_hex.file, canvas, hex_size);
+
+  var x, y;
+  [x, y] = get_hexagon_position(selected_piece.rank, selected_piece.file, canvas, hex_size);
+
+  //
+  socket.onmessage = (msg) => {draw_board(); display_board(JSON.parse(msg.data).occupied_squares);};
+
+
+  if (socket.readyState == socket.OPEN) {
+    socket.send(
+      `{"op": "RegisterMove",
+        "user_id": "${user_id}",
+        "start_hexagon": "${hex_labels[`${x},${y}`]}",
+        "final_hexagon": "${hex_labels[`${dest_x},${dest_y}`]}"}`
+    );
+  }
+  else {
+    socket = setup_websocket();
+  }
   draw_board();
   display_board(board);
   if (player_color == "Black") {
@@ -232,10 +259,23 @@ function move_piece(destination_hex) {
 function get_matching_board_pieces(board, color) {
   var matching_pieces = {};
   Object.entries(board).forEach(
-    ([hexagon, piece]) => 
-    {let {rank, file} = parse_hexagon_string(hexagon); piece.color === color ? matching_pieces[hexagon] = {"rank": rank, "file": file}: null; });
+    ([hexagon, piece]) => { let { rank, file } = parse_hexagon_string(hexagon); piece.color === color ? matching_pieces[hexagon] = { "rank": rank, "file": file } : null; });
   return matching_pieces;
 }
+
+// function request_new_board() {
+//   if (socket.readyState == socket.OPEN) {
+//     socket.send(
+//       `{"op": "RequestNewBoard",
+//         "user_id": "${user_id}"}`
+//     );
+//   }
+//   else {
+//     socket = setup_websocket();
+//   }
+//   draw_board();
+//   display_board(board);
+// }
 
 
 function handle_click(event) {
@@ -247,9 +287,8 @@ function handle_click(event) {
   }
 
   else {
-    console.log(valid_moves);
     let moves = [];
-    valid_moves.forEach((x) => {let {rank, file} = parse_hexagon_string(x); moves.push({"rank": rank, "file": file});})
+    valid_moves.forEach((x) => { let { rank, file } = parse_hexagon_string(x); moves.push({ "rank": rank, "file": file }); })
     process_clickables(moves, event, hex_size * 0.866, move_piece);
     // even if the user clicks an invalid hexagon, deselect the piece
     selected_piece = null;
@@ -259,5 +298,3 @@ function handle_click(event) {
 }
 
 canvas.addEventListener("click", handle_click);
-
-console.log(user_id)

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::{fs, path::PathBuf};
 
-use crate::moves::{self, SlidingMoves, pawn_moves_not_attacking, KnightMoves};
+use crate::moves::{self, pawn_moves_not_attacking, KnightMoves, SlidingMoves};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
@@ -16,7 +16,7 @@ pub enum PieceType {
     King,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
 pub enum Color {
     White,
     Black,
@@ -163,7 +163,11 @@ pub fn is_king_in_check(board: Board) -> bool {
 //     // so break out the functionality here
 // }
 
-fn get_blocking_sliding_moves(mut moves: SlidingMoves, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+fn get_blocking_sliding_moves(
+    mut moves: SlidingMoves,
+    piece: &Piece,
+    board: &Board,
+) -> Vec<Hexagon> {
     let mut valid_moves = Vec::<Hexagon>::new();
 
     while let Some(hexagon) = moves.next() {
@@ -182,7 +186,11 @@ fn get_blocking_sliding_moves(mut moves: SlidingMoves, piece: &Piece, board: &Bo
     valid_moves
 }
 
-fn get_valid_knight_moves(mut moves: moves::KnightMoves, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+fn get_valid_knight_moves(
+    mut moves: moves::KnightMoves,
+    piece: &Piece,
+    board: &Board,
+) -> Vec<Hexagon> {
     let mut valid_moves = Vec::<Hexagon>::new();
     for hex in moves {
         if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
@@ -200,28 +208,50 @@ pub fn get_valid_moves(hexagon: &Hexagon, piece: &Piece, board: &Board) -> Vec<H
     // get valid pieces
     // check for friendly pieces blocking stuff
     // check for enemy pieces allowing captures
-    // let valid_moves = match piece.piece_type {
-    //     PieceType::Pawn => moves::pawn_moves_not_attacking(hexagon, piece.color),
-    //     PieceType::Bishop => BishopMoves::new(hexagon),
-    //     PieceType::Knight => KnightMoves::new(hexagon),
-    //     PieceType::King => KingMoves::new(hexagon),
-    //     PieceType::Queen => QueenMoves::new(hexagon),
-    //     PieceType::Rook => RookMoves::new(hexagon),
-    //     PieceType
-    // }
     let valid_moves = match piece.piece_type {
         PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => {
             get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board)
-        },
-        PieceType::Pawn => {moves::pawn_moves(hexagon, &piece.color, board)},
-        PieceType::Knight => {get_valid_knight_moves(KnightMoves::new(hexagon), piece, board)}
-
-        _ => Vec::<Hexagon>::new(),
+        }
+        PieceType::Pawn => moves::pawn_moves(hexagon, &piece.color, board),
+        PieceType::Knight => get_valid_knight_moves(KnightMoves::new(hexagon), piece, board),
     };
 
     // validate the king is not in check for any of the moves
 
     valid_moves
+}
+
+pub enum HexChessError {
+    FailedToRegisterMove,
+}
+
+pub fn register_move(
+    start_hexagon: &Hexagon,
+    final_hexagon: &Hexagon,
+    board: &mut Board,
+) -> Result<Color, HexChessError> {
+    // If succesful, return the color of the player whose turn
+    // it will now be.
+    let moving_color = board.occupied_squares.get(&start_hexagon).unwrap().color;
+    let new_color = match moving_color {
+        Color::White => Color::Black,
+        Color::Black => Color::White
+    };
+
+    // try remove the moving piece from the old hex
+    match board.occupied_squares.remove(&start_hexagon) {
+        Some(piece) => {
+        // try insert the moving piece in the new hex
+            match board.occupied_squares.insert(*final_hexagon, piece) {
+                Some(other_piece) => println!("Captured {:?}", other_piece),
+                None => {}
+            };
+            Ok(new_color)
+        },
+        None => {
+            Err(HexChessError::FailedToRegisterMove)
+        }
+    }
 }
 
 pub fn validate_move(movement: Movement, board: Board) -> Option<Board> {

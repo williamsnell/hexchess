@@ -1,4 +1,4 @@
-use hexchesscore::{moves, Board, Hexagon, get_valid_moves};
+use hexchesscore::{moves, Board, Hexagon, get_valid_moves, register_move};
 use tungstenite::http::HeaderValue;
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
@@ -9,7 +9,7 @@ use std::{
     fs,
     io::{prelude::*, BufReader},
 };
-use serde_json::from_str;
+use serde::{Serialize, Deserialize};
 use tungstenite::{
     accept,
     handshake::server::{ErrorResponse, Request, Response},
@@ -28,6 +28,13 @@ pub struct SessionHandler {
     sessions: HashMap<Uuid, Session>,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "op")]
+enum Message {
+    GetMoves { user_id: String, hexagon: Hexagon},
+    RegisterMove {user_id: String, start_hexagon: Hexagon, final_hexagon: Hexagon},
+}
+
 impl SessionHandler {
     fn new() -> SessionHandler {
         SessionHandler {
@@ -35,74 +42,76 @@ impl SessionHandler {
         }
     }
 
-    fn get_session_if_exists(&self, user_id: Uuid) -> Option<&Session> {
-        self.sessions.get(&user_id)
+    fn get_session_if_exists(&mut self, user_id: Uuid) -> Option<&mut Session> {
+        self.sessions.get_mut(&user_id)
     }
 
-    fn add_session(&mut self, user_id: Uuid) -> &Board {
+    fn add_session(&mut self, user_id: Uuid) -> &mut Board {
         let board = Board::setup_default_board();
         self.sessions.insert(user_id, board);
-        self.sessions.get(&user_id).expect("board wasn't added for some reason")
+        self.sessions.get_mut(&user_id).expect("board wasn't added for some reason")
     }
 }
-
-
-
-// fn initialize_session(sessions: SessionHandler) -> SessionId {
-//     let uuid = Uuid::new_v4();
-
-// }
-
-// fn handle_web_connection(msg: Message) {
-
-// }
 
 fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<SessionHandler>>) {
     loop {
         let message = websocket.read().unwrap();
 
-        println!("{:?}", message);
-
         if let Text(message) = message {
-            let user_id = &message[..36];
-            let hex = &message[36..];
-            if let Ok(user_id) = Uuid::parse_str(user_id) {
-                // get the user's stored board state
-                let mut session = sessions.lock().unwrap();
+            println!("{:?}", message);
+            let decoded: Message = serde_json::from_str(message.as_str()).unwrap();
+
+            match decoded {
+                Message::GetMoves { user_id, hexagon } => {          
+                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                    let mut session = sessions.lock().unwrap();
     
-                let board: &Board;
-                
-                if let Some(valid_session) = session.get_session_if_exists(user_id) {
-                    board = valid_session;                
-                } else {
-                    board = session.add_session(user_id);
-                }
-                
-                // try and process the move
-                if let Some(hex_move) = Hexagon::new(hex) {
-                    if let Some(piece) = board.occupied_squares.get(&hex_move) {
+                    let board: &Board;
+                    
+                    if let Some(valid_session) = session.get_session_if_exists(user_id) {
+                        board = valid_session;                
+                    } else {
+                        board = session.add_session(user_id);
+                    }
+                    
+                    // try and process the move
+                    if let Some(piece) = board.occupied_squares.get(&hexagon) {
                         // match piece type to valid moves
-                        let moves = get_valid_moves(&hex_move, &piece, &board);
+                        let moves = get_valid_moves(&hexagon, &piece, &board);
                         let moves_json = serde_json::to_string(&moves).unwrap();
                         let json = format!("{{\"moves\": {moves_json}}}");
                         websocket.send(Text(json)).unwrap();
-                    }
-                }
+                    }      
+                    drop(session);},
+                Message::RegisterMove { user_id, start_hexagon, final_hexagon } => {
+                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                    let mut session = sessions.lock().unwrap();
     
-            
-                drop(session);
+                    let board: &mut Board;
+                    
+                    if let Some(valid_session) = session.get_session_if_exists(user_id) {
+                        board = valid_session;                
+                    } else {
+                        board = session.add_session(user_id);
+                    }
+                    
+                    // try and process the move
+                    if let Some(piece) = board.occupied_squares.get(&start_hexagon) {
+                        // match piece type to valid moves
+                        let moves = get_valid_moves(&start_hexagon, &piece, board);
+                        
+                        if moves.contains(&final_hexagon) {
+                            register_move(&start_hexagon, &final_hexagon, board);
+                        }
+                    }
+
+                    // send back the board state
+                    let new_board_state = serde_json::to_string(board).expect("failed to serialize board");
+                    websocket.send(Text(new_board_state));      
+                    drop(session);
+                }
             }
         }
-        // if msg.is_text() {
-        //     // let piece = board;
-        //     let rook_moves: Vec<Hexagon> =
-        //         // moves::RookMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
-        //         moves::KnightMoves::new(Hexagon::new(msg.to_text().expect("not text")).unwrap()).collect();
-        //     let moves_json = serde_json::to_string(&rook_moves).unwrap();
-        //     println!("{:?}", moves_json);
-        //     let json = format!("{{\"moves\": {moves_json}}}");
-        //     websocket.send(Text(json)).unwrap();
-        // }
     }
 }
 
