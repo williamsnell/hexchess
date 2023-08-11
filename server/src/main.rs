@@ -1,8 +1,9 @@
 use hexchesscore::{moves, Board, Hexagon, get_valid_moves, register_move};
 use tungstenite::http::HeaderValue;
+use warp::Filter;
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
-use std::path::{self, Path};
+use std::path::{self, Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 use std::{
@@ -16,6 +17,7 @@ use tungstenite::{
     Message::Text,
     WebSocket,
 };
+use tokio;
 use uuid::Uuid;
 
 pub struct SessionId {
@@ -179,30 +181,44 @@ fn handle_tcp_stream(mut stream: TcpStream) {
     }
 }
 
-fn main() {
-    let websocket_server = TcpListener::bind("127.0.0.1:7979").unwrap();
-    let server = TcpListener::bind("127.0.0.1:7878").unwrap();
+// fn main() {
+//     let websocket_server = TcpListener::bind("127.0.0.1:7979").unwrap();
+//     let server = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    let sessions: Arc<Mutex<SessionHandler>> = Arc::new(Mutex::new(SessionHandler::new()));
+//     let sessions: Arc<Mutex<SessionHandler>> = Arc::new(Mutex::new(SessionHandler::new()));
 
-    spawn(move || loop {
-        for stream in websocket_server.incoming() {
-            let new_sessions = Arc::clone(&sessions);
-            spawn(|| {
-                let websocket = accept(stream.unwrap())
-                .unwrap();
-                handle_websocket(websocket, new_sessions);
-            });
-        }
-    });
+//     spawn(move || loop {
+//         for stream in websocket_server.incoming() {
+//             let new_sessions = Arc::clone(&sessions);
+//             spawn(|| {
+//                 let websocket = accept(stream.unwrap())
+//                 .unwrap();
+//                 handle_websocket(websocket, new_sessions);
+//             });
+//         }
+//     });
 
-    spawn(move || loop {
-        for stream in server.incoming() {
-            spawn(move || {
-                handle_tcp_stream(stream.unwrap());
-            });
-        }
-    });
+//     spawn(move || loop {
+//         for stream in server.incoming() {
+//             spawn(move || {
+//                 handle_tcp_stream(stream.unwrap());
+//             });
+//         }
+//     });
 
-    loop {}
+//     loop {}
+// }
+
+#[tokio::main]
+async fn main() {
+    println!("{:?}", fs::canonicalize(PathBuf::from("./server_files")));
+
+    // handle the page-serving side of the website
+    let default = warp::path::end().and(warp::fs::file("./server_files/hello.html"));
+
+    let pages = warp::fs::dir("./server_files/");
+
+    let routes = pages.or(default);
+    
+    warp::serve(routes).tls().cert_path("cert.pem").key_path("key.rsa").run(([0, 0, 0, 0], 80)).await;
 }
