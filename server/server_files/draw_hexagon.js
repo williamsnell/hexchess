@@ -77,7 +77,6 @@ function draw_board() {
   for (let i = 0; i < vertical_hexagons_per_column.length; i++) {
     positions.push(draw_hex_callback(vertical_hexagons_per_column[i], i));
   }
-  draw_pieces_from_board_state(board);
   return positions.flat();
 }
 
