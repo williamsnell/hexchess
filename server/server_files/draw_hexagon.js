@@ -291,6 +291,7 @@ function get_matching_board_pieces(board, color) {
 
 function handle_click(event) {
   draw_board();
+  draw_pieces_from_board_state(board);
   request_board_state();
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
@@ -306,6 +307,7 @@ function handle_click(event) {
     // even if the user clicks an invalid hexagon, deselect the piece
     selected_piece = null;
     draw_board();
+    draw_pieces_from_board_state(board);
     request_board_state();
   }
 }
