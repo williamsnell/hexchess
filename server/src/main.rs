@@ -177,7 +177,7 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
                         let moves = get_valid_moves(&start_hexagon, &piece, board);
 
                         if moves.contains(&final_hexagon) {
-                            register_move(&start_hexagon, &final_hexagon, board);
+                            let _ = register_move(&start_hexagon, &final_hexagon, board);
                         }
                     }
                     drop(session);

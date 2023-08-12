@@ -243,7 +243,7 @@ pub fn register_move(
         Some(piece) => {
         // try insert the moving piece in the new hex
             match board.occupied_squares.insert(*final_hexagon, piece) {
-                Some(other_piece) => println!("Captured {:?}", other_piece),
+                Some(other_piece) => {},/// println!("Captured {:?}", other_piece),
                 None => {}
             };
             Ok(new_color)

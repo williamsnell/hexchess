@@ -350,7 +350,6 @@ pub fn pawn_moves(hexagon: &Hexagon, color: &Color, board: &Board) -> Vec<Hexago
 
     for hex in attacking {
         if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
-            println!("{:?}", &occupied_hex.color);
             if &occupied_hex.color != color {
                 valid_moves.push(hex);
             };
