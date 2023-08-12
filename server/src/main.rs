@@ -84,8 +84,6 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
     // turn the normal receiver into a stream
     let mut rx = UnboundedReceiverStream::new(rx);
 
-    ws_tx.send(Message::text("hi")).await;
-
     // spawn a task that will do the sending for us
     tokio::task::spawn(async move {
         while let Some(message) = rx.next().await {
