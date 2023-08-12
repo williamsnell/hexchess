@@ -278,14 +278,19 @@ pub fn register_move(
 
 fn holy_hell(board: &mut Board, final_hexagon: &Hexagon, valid_player: Color) {
     if board.en_passant.is_some() {
-        let mut new_hex = final_hexagon.clone();
-        let actual_pawn_file = match valid_player {
-            Color::White => new_hex.file - 1,
-            Color::Black => new_hex.file + 1,
-        };
-        new_hex.file = actual_pawn_file;
+        let new_hex = convert_en_passant_to_virtual_pawn(final_hexagon, valid_player);
         if new_hex == board.en_passant.unwrap() {
             board.occupied_squares.remove(&new_hex).unwrap();
         }
     }
+}
+
+pub fn convert_en_passant_to_virtual_pawn(final_hexagon: &Hexagon, valid_player: Color) -> Hexagon {
+    let mut new_hex = final_hexagon.clone();
+    let actual_pawn_file = match valid_player {
+        Color::White => new_hex.file - 1,
+        Color::Black => new_hex.file + 1,
+    };
+    new_hex.file = actual_pawn_file;
+    new_hex
 }
