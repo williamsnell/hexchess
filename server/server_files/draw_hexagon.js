@@ -122,10 +122,10 @@ var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 var user_id = crypto.randomUUID();
 
 function setup_websocket() {
-  const BACKEND_URL = "ws://" + window.location.hostname + ":7979";
+  const BACKEND_URL = "wss://" + window.location.hostname + ":" + window.location.port;
   const socket = new WebSocket(BACKEND_URL);
   socket.onmessage = (message) => handle_incoming_message(message);
-  socket.addEventListener("open", () => console.log("Socket Open"));
+  socket.addEventListener("open", () => {console.log("Socket Open"); request_board_state();});
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
 
@@ -305,7 +305,5 @@ function handle_click(event) {
     request_board_state();
   }
 }
-
-request_board_state();
 
 canvas.addEventListener("click", handle_click);
