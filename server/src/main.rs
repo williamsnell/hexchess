@@ -1,6 +1,5 @@
-use hexchesscore::{moves, Board, Hexagon, get_valid_moves, register_move};
-use tungstenite::http::HeaderValue;
-use warp::Filter;
+use hexchesscore::{get_valid_moves, moves, register_move, Board, Hexagon};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::path::{self, Path, PathBuf};
@@ -10,15 +9,16 @@ use std::{
     fs,
     io::{prelude::*, BufReader},
 };
-use serde::{Serialize, Deserialize};
+use tokio;
+use tungstenite::http::HeaderValue;
 use tungstenite::{
     accept,
     handshake::server::{ErrorResponse, Request, Response},
     Message::Text,
     WebSocket,
 };
-use tokio;
 use uuid::Uuid;
+use warp::Filter;
 
 pub struct SessionId {
     uuid: Uuid,
@@ -33,16 +33,25 @@ pub struct SessionHandler {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "op")]
 enum IncomingMessage {
-    GetBoard { user_id: String},
-    GetMoves { user_id: String, hexagon: Hexagon},
-    RegisterMove {user_id: String, start_hexagon: Hexagon, final_hexagon: Hexagon},
+    GetBoard {
+        user_id: String,
+    },
+    GetMoves {
+        user_id: String,
+        hexagon: Hexagon,
+    },
+    RegisterMove {
+        user_id: String,
+        start_hexagon: Hexagon,
+        final_hexagon: Hexagon,
+    },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(tag = "op")]
 enum OutgoingMessage<'a> {
-    ValidMoves { moves: &'a Vec<Hexagon>},
-    BoardState { board: &'a Board}
+    ValidMoves { moves: &'a Vec<Hexagon> },
+    BoardState { board: &'a Board },
 }
 
 impl SessionHandler {
@@ -59,7 +68,9 @@ impl SessionHandler {
     fn add_session(&mut self, user_id: Uuid) -> &mut Board {
         let board = Board::setup_default_board();
         self.sessions.insert(user_id, board);
-        self.sessions.get_mut(&user_id).expect("board wasn't added for some reason")
+        self.sessions
+            .get_mut(&user_id)
+            .expect("board wasn't added for some reason")
     }
 }
 
@@ -73,36 +84,36 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
 
             match decoded {
                 IncomingMessage::GetBoard { user_id } => {
-                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                    let user_id = Uuid::parse_str(&user_id).unwrap();
                     let mut session = sessions.lock().unwrap();
-    
+
                     let board: &Board;
-                    
+
                     if let Some(valid_session) = session.get_session_if_exists(user_id) {
-                        board = valid_session;                
+                        board = valid_session;
                     } else {
                         board = session.add_session(user_id);
                     }
                     let message = OutgoingMessage::BoardState { board: board };
                     if let Ok(new_board_state) = serde_json::to_string(&message) {
-                        websocket.send(Text(new_board_state));      
+                        websocket.send(Text(new_board_state));
                     } else {
                         eprintln!("Failed to send board state");
                     }
                     drop(session);
-                },
-                IncomingMessage::GetMoves { user_id, hexagon } => {          
-                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                }
+                IncomingMessage::GetMoves { user_id, hexagon } => {
+                    let user_id = Uuid::parse_str(&user_id).unwrap();
                     let mut session = sessions.lock().unwrap();
-    
+
                     let board: &Board;
-                    
+
                     if let Some(valid_session) = session.get_session_if_exists(user_id) {
-                        board = valid_session;                
+                        board = valid_session;
                     } else {
                         board = session.add_session(user_id);
                     }
-                    
+
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&hexagon) {
                         // match piece type to valid moves
@@ -111,26 +122,33 @@ fn handle_websocket(mut websocket: WebSocket<TcpStream>, sessions: Arc<Mutex<Ses
                         let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
                         // let moves_json = serde_json::to_string(&moves).unwrap();
                         // let json = format!("{{\"op\": \"ValidMoves\", \"moves\": {moves_json}}}");
-                        websocket.send(Text(serde_json::to_string(&outgoing).unwrap())).unwrap();
-                    }      
-                    drop(session);},
-                IncomingMessage::RegisterMove { user_id, start_hexagon, final_hexagon } => {
-                    let user_id = Uuid::parse_str(&user_id).unwrap();      
+                        websocket
+                            .send(Text(serde_json::to_string(&outgoing).unwrap()))
+                            .unwrap();
+                    }
+                    drop(session);
+                }
+                IncomingMessage::RegisterMove {
+                    user_id,
+                    start_hexagon,
+                    final_hexagon,
+                } => {
+                    let user_id = Uuid::parse_str(&user_id).unwrap();
                     let mut session = sessions.lock().unwrap();
-    
+
                     let board: &mut Board;
-                    
+
                     if let Some(valid_session) = session.get_session_if_exists(user_id) {
-                        board = valid_session;                
+                        board = valid_session;
                     } else {
                         board = session.add_session(user_id);
                     }
-                    
+
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&start_hexagon) {
                         // match piece type to valid moves
                         let moves = get_valid_moves(&start_hexagon, &piece, board);
-                        
+
                         if moves.contains(&final_hexagon) {
                             register_move(&start_hexagon, &final_hexagon, board);
                         }
@@ -211,14 +229,20 @@ fn handle_tcp_stream(mut stream: TcpStream) {
 
 #[tokio::main]
 async fn main() {
-    println!("{:?}", fs::canonicalize(PathBuf::from("./server_files")));
-
     // handle the page-serving side of the website
     let default = warp::path::end().and(warp::fs::file("./server_files/hello.html"));
 
     let pages = warp::fs::dir("./server_files/");
 
-    let routes = pages.or(default);
-    
-    warp::serve(routes).tls().cert_path("cert.pem").key_path("key.rsa").run(([0, 0, 0, 0], 80)).await;
+    let routes = pages
+        .or(default)
+        // serve 404s if the file doesn't exist and the client isn't asking for the default page
+        .or(warp::fs::file("./server_files/404.html"));
+
+    warp::serve(routes)
+        .tls()
+        .cert_path("./cert/playhexchess.com.crt")
+        .key_path("./cert/playhexchess.com.key")
+        .run(([0, 0, 0, 0], 7878))
+        .await;
 }
