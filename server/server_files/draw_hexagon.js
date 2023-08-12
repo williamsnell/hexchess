@@ -109,7 +109,6 @@ var board;
 function handle_incoming_message(message) {
   var payload = JSON.parse(message.data);
   if (payload.op == "ValidMoves") {
-    console.log(payload);
     parse_moves(payload.moves);
   } else if (payload.op == "BoardState") {
     board = payload.board;
