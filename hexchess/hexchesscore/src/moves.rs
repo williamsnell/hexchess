@@ -1,10 +1,9 @@
-use std::{
-    vec::Vec,
-    cmp::min,
-    iter::zip,
-};
+use std::{cmp::min, iter::zip, vec::Vec};
 
-use crate::{hexchesscore::{Hexagon, Color, Piece, Board}, PieceType};
+use crate::{
+    hexchesscore::{Board, Color, Hexagon, Piece},
+    PieceType,
+};
 
 pub fn get_rank_length(rank: u8) -> Option<u8> {
     match rank {
@@ -70,7 +69,7 @@ impl SlidingMoves {
             PieceType::Bishop => SlidingMoves::new_bishop_moves(position),
             PieceType::Queen => SlidingMoves::new_queen_moves(position),
             PieceType::King => SlidingMoves::new_king_moves(position),
-            _ => Vec::<Vec<Hexagon>>::new()
+            _ => Vec::<Vec<Hexagon>>::new(),
         };
         SlidingMoves { move_list: moves }
     }
@@ -127,14 +126,14 @@ impl SlidingMoves {
                 )
             })
             .collect();
-            vec![
-                arm_top,
-                arm_bottom,
-                arm_top_left,
-                arm_bottom_right,
-                arm_bottom_left,
-                arm_top_right,
-            ]
+        vec![
+            arm_top,
+            arm_bottom,
+            arm_top_left,
+            arm_bottom_right,
+            arm_bottom_left,
+            arm_top_right,
+        ]
     }
 
     pub fn new_bishop_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
@@ -146,33 +145,39 @@ impl SlidingMoves {
 
         let arm_left: Vec<Hexagon> =
             zip((q % 2..q).step_by(2).rev(), zip((0..r).rev(), (0..s).rev()))
-                .map(|(x, (y, _z))| axial_to_chess_coords(x, y)).rev()
+                .map(|(x, (y, _z))| axial_to_chess_coords(x, y))
+                .rev()
                 .collect();
 
-        let arm_right: Vec<Hexagon> =
-            zip((q+2..=10).step_by(2), zip(r+1..=10, s+1..=10))
-                .map(|(x, (y, _z))| axial_to_chess_coords(x, y)).rev()
-                .collect();
+        let arm_right: Vec<Hexagon> = zip((q + 2..=10).step_by(2), zip(r + 1..=10, s + 1..=10))
+            .map(|(x, (y, _z))| axial_to_chess_coords(x, y))
+            .rev()
+            .collect();
 
         let arm_down_left: Vec<Hexagon> =
-            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), s+1..=10))
-                .map(|(x, (y, _z))| axial_to_chess_coords(y, x)).rev()
+            zip((r % 2..r).step_by(2).rev(), zip((0..q).rev(), s + 1..=10))
+                .map(|(x, (y, _z))| axial_to_chess_coords(y, x))
+                .rev()
                 .collect();
 
         let arm_up_right: Vec<Hexagon> =
-            zip((r+2..=10).step_by(2), zip(q+1..=10, (0..s).rev()))
-                .map(|(x, (y, _z))| axial_to_chess_coords(y, x)).rev()
+            zip((r + 2..=10).step_by(2), zip(q + 1..=10, (0..s).rev()))
+                .map(|(x, (y, _z))| axial_to_chess_coords(y, x))
+                .rev()
                 .collect();
 
-        let arm_up_left: Vec<Hexagon> = zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), r+1..=10))
-        .map(|(_x, (y, z))| axial_to_chess_coords(y, z)).rev()
-        .collect();
+        let arm_up_left: Vec<Hexagon> =
+            zip((s % 2..s).step_by(2).rev(), zip((0..q).rev(), r + 1..=10))
+                .map(|(_x, (y, z))| axial_to_chess_coords(y, z))
+                .rev()
+                .collect();
 
         let arm_down_right: Vec<Hexagon> =
-            zip((s+2..=10).step_by(2), zip(q+1..=10, (0..r).rev()))
-                .map(|(_x, (y, z))| axial_to_chess_coords(y, z)).rev()
+            zip((s + 2..=10).step_by(2), zip(q + 1..=10, (0..r).rev()))
+                .map(|(_x, (y, z))| axial_to_chess_coords(y, z))
+                .rev()
                 .collect();
-        
+
         vec![
             arm_left,
             arm_right,
@@ -180,7 +185,7 @@ impl SlidingMoves {
             arm_up_right,
             arm_up_left,
             arm_down_right,
-            ]
+        ]
     }
 
     pub fn new_queen_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
@@ -198,15 +203,15 @@ impl SlidingMoves {
     // arms to drop
     pub fn new_king_moves(position: &Hexagon) -> Vec<Vec<Hexagon>> {
         let king_moves = SlidingMoves::new_queen_moves(position);
-            
+
         let mut move_list: Vec<Vec<Hexagon>> = Vec::new();
-    
+
         for mut arm in king_moves {
             if let Some(arm_val) = arm.pop() {
                 move_list.push(vec![arm_val]);
             }
         }
-    
+
         // this is likely very slow, but it's quick to code...
         // get the first move from each of the queen's arms
         move_list
@@ -218,7 +223,6 @@ impl SlidingMoves {
         self.move_list.pop();
     }
 }
-
 
 impl Iterator for SlidingMoves {
     type Item = Hexagon;
@@ -247,30 +251,76 @@ impl KnightMoves {
 
         let move_options = [
             //left
-            if (q > 1) & (r < 10) & (s > 2) {Some(axial_to_chess_coords(q-2, calc_r(q-2,s-3)))} else {None},
-            if (q > 2) & (r > 0) & (s > 1) {Some(axial_to_chess_coords(q-3, r - 1))} else {None},
-            if (q > 2) & (r > 1) & (s > 0) {Some(axial_to_chess_coords(q-3, r - 2))} else {None},
-            if (q > 1) & (r > 2) & (s < 10) {Some(axial_to_chess_coords(q-2, r - 3))} else {None},
+            if (q > 1) & (r < 10) & (s > 2) {
+                Some(axial_to_chess_coords(q - 2, calc_r(q - 2, s - 3)))
+            } else {
+                None
+            },
+            if (q > 2) & (r > 0) & (s > 1) {
+                Some(axial_to_chess_coords(q - 3, r - 1))
+            } else {
+                None
+            },
+            if (q > 2) & (r > 1) & (s > 0) {
+                Some(axial_to_chess_coords(q - 3, r - 2))
+            } else {
+                None
+            },
+            if (q > 1) & (r > 2) & (s < 10) {
+                Some(axial_to_chess_coords(q - 2, r - 3))
+            } else {
+                None
+            },
             // right
-            if (q < 9) & (r > 0) & (s < 8) {Some(axial_to_chess_coords(q+2, calc_r(q+2,s+3)))} else {None},
-            if (q < 8) & (r < 10) & (s < 9) {Some(axial_to_chess_coords(q+3, r + 1))} else {None},
-            if (q < 8) & (r < 9) & (s < 10) {Some(axial_to_chess_coords(q+3, r+ 2))} else {None},
-            if (q < 9) & (r < 8) & (s > 0) {Some(axial_to_chess_coords(q+2, r + 3))} else {None},
-
+            if (q < 9) & (r > 0) & (s < 8) {
+                Some(axial_to_chess_coords(q + 2, calc_r(q + 2, s + 3)))
+            } else {
+                None
+            },
+            if (q < 8) & (r < 10) & (s < 9) {
+                Some(axial_to_chess_coords(q + 3, r + 1))
+            } else {
+                None
+            },
+            if (q < 8) & (r < 9) & (s < 10) {
+                Some(axial_to_chess_coords(q + 3, r + 2))
+            } else {
+                None
+            },
+            if (q < 9) & (r < 8) & (s > 0) {
+                Some(axial_to_chess_coords(q + 2, r + 3))
+            } else {
+                None
+            },
             //top
-            if (q < 10) & (r < 8) & (s > 1) {Some(axial_to_chess_coords(q+1, r + 3))} else {None},
-            if (q > 0) & (r < 9) & (s > 2) {Some(axial_to_chess_coords(q-1, calc_r(q-1,s-3)))} else {None},
-
+            if (q < 10) & (r < 8) & (s > 1) {
+                Some(axial_to_chess_coords(q + 1, r + 3))
+            } else {
+                None
+            },
+            if (q > 0) & (r < 9) & (s > 2) {
+                Some(axial_to_chess_coords(q - 1, calc_r(q - 1, s - 3)))
+            } else {
+                None
+            },
             //bottom
-            if (q < 10) & (r > 1) & (s < 8) {Some(axial_to_chess_coords(q+1, r - 2))} else {None},
-            if (q > 0) & (r > 2) & (s < 9) {Some(axial_to_chess_coords(q-1, r - 3))} else {None},
-
+            if (q < 10) & (r > 1) & (s < 8) {
+                Some(axial_to_chess_coords(q + 1, r - 2))
+            } else {
+                None
+            },
+            if (q > 0) & (r > 2) & (s < 9) {
+                Some(axial_to_chess_coords(q - 1, r - 3))
+            } else {
+                None
+            },
         ];
 
         let move_list: Vec<Hexagon> = move_options.into_iter().filter_map(|x| x).collect();
-        
 
-        KnightMoves { move_list: move_list }
+        KnightMoves {
+            move_list: move_list,
+        }
     }
 
     pub fn drop_arm(&mut self) {
@@ -284,8 +334,6 @@ impl KnightMoves {
 impl Iterator for KnightMoves {
     type Item = Hexagon;
     fn next(&mut self) -> Option<Hexagon> {
-        // if let Some(output) = (*self.move_list.last().unwrap()).pop() {
-        //     Some(output)
         if let Some(val) = self.move_list.pop() {
             Some(val)
         } else {
@@ -294,20 +342,45 @@ impl Iterator for KnightMoves {
     }
 }
 
+pub fn pawn_moves_double_jump(hexagon: &Hexagon, color: &Color, board: &Board) -> Option<Hexagon> {
+    let mut jump = None;
+    let (q, r) = chess_to_axial_coords(&hexagon);
+    let s = calc_s(q, r);
+    // if pawn is on starting rank, it can double jump
+    // ... but only if it's ordinary square isn't blocked
+    if matches!(color, Color::White) & (((s == 6) & (q < 6)) | ((r == 4) & (q > 5))) {
+        if board
+            .occupied_squares
+            .get(&axial_to_chess_coords(q, r + 1))
+            .is_none()
+        {
+            jump = Some(axial_to_chess_coords(q, r + 2));
+        };
+    } else if matches!(color, Color::Black) & (((s == 4) & (q > 4)) | (r == 6) & (q < 6)) {
+        if board
+            .occupied_squares
+            .get(&axial_to_chess_coords(q, r - 1))
+            .is_none()
+        {
+            jump = Some(axial_to_chess_coords(q, r - 2));
+        }
+    }
+    jump
+}
 
 pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     let mut moves = Vec::<Hexagon>::new();
     let (q, r) = chess_to_axial_coords(&hexagon);
-    let s = calc_s(q, r);
-    // if pawn is on starting rank, it can double jump
-    if matches!(color, Color::White) & (((s == 6) & (q < 6)) | ((r == 4) & (q > 5))) {
-        moves.push(axial_to_chess_coords(q, r + 2));
-    } else if matches!(color, Color::Black) & (((s == 4) & (q > 4)) | (r == 6) & (q < 6)) {
-        moves.push(axial_to_chess_coords(q, r - 2));
-    }
 
     // add the normal, single forward move
-    moves.push(axial_to_chess_coords(q, if matches!(color, Color::White) {r + 1} else {r - 1}));
+    moves.push(axial_to_chess_coords(
+        q,
+        if matches!(color, Color::White) {
+            r + 1
+        } else {
+            r - 1
+        },
+    ));
 
     // ignore en passant for now, it's going to require a decently big restructure
 
@@ -315,7 +388,6 @@ pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon
 
     moves
 }
-
 
 pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     let mut valid_moves = Vec::<Hexagon>::new();
@@ -340,13 +412,23 @@ pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     valid_moves
 }
 
-pub fn pawn_moves(hexagon: &Hexagon, color: &Color, board: &Board) -> Vec<Hexagon> {
+pub fn pawn_moves(
+    hexagon: &Hexagon,
+    color: &Color,
+    board: &Board,
+) -> (Vec<Hexagon>, Option<Hexagon>) {
     let mut valid_moves = Vec::<Hexagon>::new();
 
     let attacking = pawn_moves_attacking(hexagon, color);
     let not_attacking = pawn_moves_not_attacking(hexagon, color);
+    let double_jump = pawn_moves_double_jump(hexagon, color, board);
 
     for hex in attacking {
+        if board.en_passant.is_some() {
+            if let Some(occupied_hex) = board.occupied_squares.get(&board.en_passant.unwrap()) {
+                valid_moves.push(hex);
+            }
+        }
         if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
             if &occupied_hex.color != color {
                 valid_moves.push(hex);
@@ -355,13 +437,18 @@ pub fn pawn_moves(hexagon: &Hexagon, color: &Color, board: &Board) -> Vec<Hexago
     }
 
     for hex in not_attacking {
-        if let Some(_) = board.occupied_squares.get(&hex) {}
-        else {
+        if let Some(_) = board.occupied_squares.get(&hex) {
+        } else {
             valid_moves.push(hex);
         }
     }
 
-    valid_moves
+    if double_jump.is_some() {
+        if let Some(_) = board.occupied_squares.get(&double_jump.unwrap()) {
+        } else {
+            valid_moves.push(double_jump.unwrap());
+        }
+    }
 
-
+    (valid_moves, double_jump)
 }

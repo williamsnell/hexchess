@@ -10,6 +10,8 @@ mod tests {
     fn setup_default_board() -> Board {
         let mut default_board = Board {
             occupied_squares: HashMap::new(),
+            en_passant: None,
+            current_player: Color::White
         };
 
         default_board.occupied_squares.insert(

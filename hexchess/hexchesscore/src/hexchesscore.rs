@@ -129,6 +129,8 @@ impl<'de> Deserialize<'de> for Hexagon {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
+    pub en_passant: Option<Hexagon>,
+    pub current_player: Color,
 }
 
 impl Board {
@@ -139,6 +141,8 @@ impl Board {
             serde_json::from_str(&data).expect("Invalid JSON format");
         Board {
             occupied_squares: moves,
+            en_passant: None,
+            current_player: Color::White,
         }
     }
 }
@@ -175,11 +179,7 @@ fn get_blocking_sliding_moves(
     valid_moves
 }
 
-fn get_valid_knight_moves(
-    moves: moves::KnightMoves,
-    piece: &Piece,
-    board: &Board,
-) -> Vec<Hexagon> {
+fn get_valid_knight_moves(moves: moves::KnightMoves, piece: &Piece, board: &Board) -> Vec<Hexagon> {
     let mut valid_moves = Vec::<Hexagon>::new();
     for hex in moves {
         if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
@@ -193,52 +193,99 @@ fn get_valid_knight_moves(
     valid_moves
 }
 
-pub fn get_valid_moves(hexagon: &Hexagon, piece: &Piece, board: &Board) -> Vec<Hexagon> {
+pub fn get_valid_moves(
+    hexagon: &Hexagon,
+    piece: &Piece,
+    board: &Board,
+) -> (Vec<Hexagon>, Option<Hexagon>) {
     // get valid pieces
     // check for friendly pieces blocking stuff
     // check for enemy pieces allowing captures
-    let valid_moves = match piece.piece_type {
-        PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => {
-            get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board)
-        }
+    let (valid_moves, double_jump) = match piece.piece_type {
+        PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => (
+            get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board),
+            Option::<Hexagon>::None,
+        ),
         PieceType::Pawn => moves::pawn_moves(hexagon, &piece.color, board),
-        PieceType::Knight => get_valid_knight_moves(KnightMoves::new(hexagon), piece, board),
+        PieceType::Knight => (
+            get_valid_knight_moves(KnightMoves::new(hexagon), piece, board),
+            None,
+        ),
     };
 
     // validate the king is not in check for any of the moves
 
-    valid_moves
+    (valid_moves, double_jump)
 }
 
 pub enum HexChessError {
     FailedToRegisterMove,
+    NotYourTurn,
 }
 
 pub fn register_move(
     start_hexagon: &Hexagon,
     final_hexagon: &Hexagon,
     board: &mut Board,
+    double_jump: Option<Hexagon>,
 ) -> Result<Color, HexChessError> {
     // If succesful, return the color of the player whose turn
     // it will now be.
     let moving_color = board.occupied_squares.get(&start_hexagon).unwrap().color;
+    let valid_player = board.current_player;
+    // make sure the right player is trying to move
+    if !(moving_color == valid_player) {
+        return Err(HexChessError::NotYourTurn);
+    }
+
     let new_color = match moving_color {
         Color::White => Color::Black,
-        Color::Black => Color::White
+        Color::Black => Color::White,
     };
 
     // try remove the moving piece from the old hex
     match board.occupied_squares.remove(&start_hexagon) {
         Some(piece) => {
-        // try insert the moving piece in the new hex
+            // try insert the moving piece in the new hex
             match board.occupied_squares.insert(*final_hexagon, piece) {
-                Some(_) => {},
-                None => {}
+                Some(_) => {}
+                None => {
+                    // if we have just completed an en-passant,
+                    // we need to remove the pawn one hexagon
+                    // up or down
+                    holy_hell(board, final_hexagon, valid_player);
+                }
             };
+
+            // If a pawn has double jumped, then we need to register it as
+            // the latest en-passant. On the other hand, if there was no
+            // double jump, the latest en-passant will be None
+            match double_jump {
+                Some(hex) => {
+                    if final_hexagon == &hex {
+                        board.en_passant = double_jump;
+                    }
+                }
+                _ => board.en_passant = None,
+            }
+            
+            board.current_player = new_color;
             Ok(new_color)
-        },
-        None => {
-            Err(HexChessError::FailedToRegisterMove)
+        }
+        None => Err(HexChessError::FailedToRegisterMove),
+    }
+}
+
+fn holy_hell(board: &mut Board, final_hexagon: &Hexagon, valid_player: Color) {
+    if board.en_passant.is_some() {
+        let mut new_hex = final_hexagon.clone();
+        let actual_pawn_file = match valid_player {
+            Color::White => new_hex.file - 1,
+            Color::Black => new_hex.file + 1,
+        };
+        new_hex.file = actual_pawn_file;
+        if new_hex == board.en_passant.unwrap() {
+            board.occupied_squares.remove(&new_hex).unwrap();
         }
     }
 }

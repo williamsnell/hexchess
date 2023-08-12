@@ -133,7 +133,7 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&hexagon) {
                         // match piece type to valid moves
-                        let moves = get_valid_moves(&hexagon, &piece, &board);
+                        let (moves, _) = get_valid_moves(&hexagon, &piece, &board);
                         
                         let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
                         tx.send(warp::ws::Message::text(serde_json::to_string(&outgoing).unwrap()))
@@ -161,10 +161,10 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&start_hexagon) {
                         // match piece type to valid moves
-                        let moves = get_valid_moves(&start_hexagon, &piece, board);
+                        let (moves, double_jump) = get_valid_moves(&start_hexagon, &piece, board);
 
                         if moves.contains(&final_hexagon) {
-                            let _ = register_move(&start_hexagon, &final_hexagon, board);
+                            let _ = register_move(&start_hexagon, &final_hexagon, board, double_jump);
                         }
                     }
                     drop(session);
