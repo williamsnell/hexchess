@@ -77,6 +77,7 @@ function draw_board() {
   for (let i = 0; i < vertical_hexagons_per_column.length; i++) {
     positions.push(draw_hex_callback(vertical_hexagons_per_column[i], i));
   }
+  draw_pieces_from_board_state(board);
   return positions.flat();
 }
 
@@ -306,7 +307,6 @@ function handle_click(event) {
     // even if the user clicks an invalid hexagon, deselect the piece
     selected_piece = null;
     draw_board();
-    draw_pieces_from_board_state(board);
     request_board_state();
   }
 }
