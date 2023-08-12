@@ -178,6 +178,7 @@ async function get_pieces() {
 var images = await get_pieces();
 
 function draw_pieces_from_board_state(board) {
+  draw_board();
   for (const [position, piece] of Object.entries(board.occupied_squares)) {
     let { rank, file } = parse_hexagon_string(position);
 
@@ -287,6 +288,8 @@ function get_matching_board_pieces(board, color) {
 }
 
 function handle_click(event) {
+  draw_board();
+  request_board_state();
   label_hexes(ctx, canvas, hex_size, draw_labels);
 
   // if we haven't selected a piece, only make pieces valid click targets
