@@ -307,9 +307,7 @@ pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon
     }
 
     // add the normal, single forward move
-    if (q >= 0) & (s >= 0) {
-        moves.push(axial_to_chess_coords(q, if matches!(color, Color::White) {r + 1} else {r - 1}));
-    }
+    moves.push(axial_to_chess_coords(q, if matches!(color, Color::White) {r + 1} else {r - 1}));
 
     // ignore en passant for now, it's going to require a decently big restructure
 

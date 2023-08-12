@@ -1,25 +1,12 @@
-use futures::{FutureExt, StreamExt, SinkExt, TryFutureExt};
-use hexchesscore::{get_valid_moves, moves, register_move, Board, Hexagon};
+use futures::{StreamExt, SinkExt, TryFutureExt};
+use hexchesscore::{get_valid_moves, register_move, Board, Hexagon};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use warp::ws::Message;
-use std::collections::HashMap;
-use std::net::{TcpListener, TcpStream};
-use std::path::{self, Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use std::thread::spawn;
-use std::{
-    fs,
-    io::{prelude::*, BufReader},
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio;
 use uuid::Uuid;
 use warp::Filter;
-
-pub struct SessionId {
-    uuid: Uuid,
-}
 
 type Session = Board;
 
@@ -204,18 +191,7 @@ async fn main() {
             .and(warp::ws())
             .and(sessions)
             .map(|ws: warp::ws::Ws, sessions| {
-                ws.on_upgrade( move|socket| handle_websocket_async(socket, sessions)
-                    
-                    
-                    //     {
-                    //     let (tx, rx) = websocket.split();
-                    //     rx.forward(tx).map(|result| {
-                    //         if let Err(e) = result {
-                    //             eprintln!("websocket error: {:?}", e);
-                    //         }
-                    //     })
-                    // }
-            )
+                ws.on_upgrade( move|socket| handle_websocket_async(socket, sessions))
             });
 
     let routes = pages
@@ -228,6 +204,6 @@ async fn main() {
         .tls()
         .cert_path("./cert/playhexchess.com.crt")
         .key_path("./cert/playhexchess.com.key")
-        .run(([0, 0, 0, 0], 443))
+        .run(([127, 0, 0, 1], 7878))
         .await;
 }

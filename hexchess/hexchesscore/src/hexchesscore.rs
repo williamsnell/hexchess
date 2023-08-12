@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::{fs, path::PathBuf};
 
-use crate::moves::{self, pawn_moves_not_attacking, KnightMoves, SlidingMoves};
+use crate::moves::{self, KnightMoves, SlidingMoves};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PieceType {
@@ -126,20 +126,9 @@ impl<'de> Deserialize<'de> for Hexagon {
     }
 }
 
-pub struct Movement {
-    origin: Hexagon,
-    destination: Hexagon,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
-}
-
-impl Board {
-    fn pieces(&mut self) -> &mut HashMap<Hexagon, Piece> {
-        &mut self.occupied_squares
-    }
 }
 
 impl Board {
@@ -187,7 +176,7 @@ fn get_blocking_sliding_moves(
 }
 
 fn get_valid_knight_moves(
-    mut moves: moves::KnightMoves,
+    moves: moves::KnightMoves,
     piece: &Piece,
     board: &Board,
 ) -> Vec<Hexagon> {
@@ -243,7 +232,7 @@ pub fn register_move(
         Some(piece) => {
         // try insert the moving piece in the new hex
             match board.occupied_squares.insert(*final_hexagon, piece) {
-                Some(other_piece) => {},/// println!("Captured {:?}", other_piece),
+                Some(_) => {},
                 None => {}
             };
             Ok(new_color)
@@ -251,13 +240,5 @@ pub fn register_move(
         None => {
             Err(HexChessError::FailedToRegisterMove)
         }
-    }
-}
-
-pub fn validate_move(movement: Movement, board: Board) -> Option<Board> {
-    if true {
-        Some(board)
-    } else {
-        None
     }
 }

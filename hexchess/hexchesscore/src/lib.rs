@@ -1,5 +1,4 @@
 pub use crate::hexchesscore::*;
-use std::collections::HashMap;
 
 pub mod hexchesscore;
 pub mod moves;
