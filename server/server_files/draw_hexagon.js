@@ -8,6 +8,7 @@ const draw_labels = false;
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
 
+
 function get_hex_color(i, number_of_hexagons) {
   var colour;
   if ((i + number_of_hexagons) % 3 == 0) {
@@ -71,6 +72,7 @@ function label_hexes(context, canvas, hex_size, show = true) {
 }
 
 function draw_board() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   var positions = [];
   for (let i = 0; i < vertical_hexagons_per_column.length; i++) {
     positions.push(draw_hex_callback(vertical_hexagons_per_column[i], i));
@@ -304,6 +306,7 @@ function handle_click(event) {
     // even if the user clicks an invalid hexagon, deselect the piece
     selected_piece = null;
     draw_board();
+    draw_pieces_from_board_state(board);
     request_board_state();
   }
 }
