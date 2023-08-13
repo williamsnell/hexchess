@@ -8,6 +8,7 @@ const draw_labels = false;
 var canvas = document.getElementById("hexagon");
 var ctx = canvas.getContext("2d");
 
+var multiplayer_enabled;
 
 function get_hex_color(i, number_of_hexagons) {
   var colour;
@@ -115,6 +116,10 @@ function handle_incoming_message(message) {
   } else if (payload.op == "BoardState") {
     board = payload.board;
     draw_pieces_from_board_state(payload.board);
+  } else if (payload.op == "JoinGameSuccess") {
+    console.log(payload);
+    document.getElementById("session_displayer").textContent = "Session ID: " + payload.session;
+    player_color = payload.color;
   }
 }
 
@@ -265,10 +270,12 @@ function move_piece(destination_hex) {
   );
   draw_board();
   request_board_state();
-  if (player_color == "Black") {
-    player_color = "White";
-  } else {
-    player_color = "Black";
+  if (!multiplayer_enabled) {
+    if (player_color == "Black") {
+      player_color = "White";
+    } else {
+      player_color = "Black";
+    }
   }
 }
 
@@ -311,5 +318,43 @@ function handle_click(event) {
     request_board_state();
   }
 }
+
+// set up new games
+document.getElementById("NewGame").onclick = () => start_game(false);
+document.getElementById("NewMultiplayerGame").onclick = () => start_game(true);
+
+function start_game(is_multiplayer) {
+  multiplayer_enabled = is_multiplayer;
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  else {
+    socket.send(
+      `{"op": "CreateGame",
+        "user_id": "${user_id}",
+        "is_multiplayer": ${is_multiplayer}}`
+    );
+  }
+}
+
+function join_game() {
+  // join multiplayer
+  var session_id = document.getElementById("session_id").value;
+  console.log(session_id);
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  else {
+    socket.send(
+      `{"op": "JoinGame",
+        "user_id": "${user_id}",
+        "game_id": "${session_id}"}`
+    );
+  }
+}
+
+
+document.getElementById("join_session_button").onclick = () => join_game();
+
 
 canvas.addEventListener("click", handle_click);
