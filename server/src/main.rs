@@ -1,17 +1,68 @@
-use futures::{StreamExt, SinkExt, TryFutureExt};
-use hexchesscore::{get_valid_moves, register_move, Board, Hexagon};
+use futures::{SinkExt, StreamExt, TryFutureExt};
+use hexchesscore::{get_valid_moves, register_move, Board, Color, Hexagon};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, RwLock};
-use tokio_stream::wrappers::UnboundedReceiverStream;
 use std::{collections::HashMap, sync::Arc};
 use tokio;
+use tokio::sync::{mpsc, RwLock};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::Filter;
 
-type Session = Board;
+struct PlayersPerGame {
+    black: Option<PlayerID>,
+    white: Option<PlayerID>,
+}
 
-pub struct SessionHandler {
-    sessions: HashMap<Uuid, Session>,
+impl PlayersPerGame {
+    fn new(first_player: PlayerID) -> PlayersPerGame {
+        // pseudo-randomly pick whether the first player is
+        // black or white
+        match first_player.as_fields().0 % 2 {
+            0 => PlayersPerGame {
+                black: Some(first_player),
+                white: None,
+            },
+            1 => PlayersPerGame {
+                black: None,
+                white: Some(first_player),
+            },
+        }
+    }
+    fn try_add_player(&mut self, second_player: PlayerID) {
+        // this function tries to add a player, but 
+        // if the second slot is already occupied,
+        // it silently fails.
+        // worth thinking about if this should raise an error
+        // instead
+        match self.black {
+            Some(_) => {
+                if self.white == None {
+                    self.white = Some(second_player)
+                }
+            }
+            None => self.black = Some(second_player),
+        }
+    }
+}
+// each session has a uuid.
+// when a player joins a multiplayer game, their session is added as a key that can
+// access that session
+
+type SessionID = Uuid;
+type PlayerID = Uuid;
+
+pub struct Session {
+    board: Board,
+    players: PlayersPerGame,
+}
+
+impl Session {
+    fn new(user_id: PlayerID) -> (SessionID, Session) {
+        let board = Board::setup_default_board();
+        let players = PlayersPerGame::new(user_id);
+        let session_id = Uuid::new_v4();
+        (session_id, Session {board: board, players: players})
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,27 +89,61 @@ enum OutgoingMessage<'a> {
     BoardState { board: &'a Board },
 }
 
+
+pub struct SessionHandler {
+    sessions: HashMap<SessionID, Session>,
+    players: HashMap<PlayerID, SessionID>
+}
+
 impl SessionHandler {
     fn new() -> SessionHandler {
         SessionHandler {
-            sessions: HashMap::<Uuid, Board>::new(),
+            sessions: HashMap::<SessionID, Session>::new(),
+            players: HashMap::<PlayerID, SessionID>::new(),
         }
     }
 
     fn get_session_if_exists(&mut self, user_id: Uuid) -> Option<&mut Session> {
-        self.sessions.get_mut(&user_id)
+        let session_id = self.players.get(&user_id);
+        match session_id {
+            Some(session) => self.sessions.get_mut(&session),
+            None => None,
+        }
     }
 
-    fn add_session(&mut self, user_id: Uuid) -> &mut Board {
-        let board = Board::setup_default_board();
-        self.sessions.insert(user_id, board);
-        self.sessions
+    fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool) -> (SessionID, &mut Session) {
+        let (session_id, mut new_session) = Session::new(user_id);
+        // if multiplayer, just add the one player for the moment,
+        // which is performed in the session::new() setup.
+        // if single-player, both player slots are the same player
+        if !is_multiplayer {
+            new_session.players.try_add_player(user_id);
+        }
+        // store the session so we can find it later
+        self.sessions.insert(session_id, new_session);
+
+        // add the player to players so we can find their game easily in the future
+        self.players.insert(user_id, session_id);
+
+        (session_id, self.sessions
             .get_mut(&user_id)
-            .expect("board wasn't added for some reason")
+            .expect("Failure creating session"))
+    }
+
+    fn try_join_session(&mut self, user_id: PlayerID, session_id: SessionID) {
+        // try and join a session. If the session is already full,
+        // or it doesn't exist, silently fail.
+        let session = self.sessions.get(&session_id);
+        if let Some(valid_session) = session {
+            valid_session.players.try_add_player(user_id);
+        }
     }
 }
 
-async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<RwLock<SessionHandler>>) {
+async fn handle_websocket_async(
+    websocket: warp::ws::WebSocket,
+    sessions: Arc<RwLock<SessionHandler>>,
+) {
     // split the socket into a sender and a receiver
     let (mut ws_tx, mut ws_rx) = websocket.split();
 
@@ -75,11 +160,11 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
     tokio::task::spawn(async move {
         while let Some(message) = rx.next().await {
             ws_tx
-            .send(message)
-            .unwrap_or_else(|e| {
-                eprintln!("websocket send error: {}", e);
-            })
-            .await;
+                .send(message)
+                .unwrap_or_else(|e| {
+                    eprintln!("websocket send error: {}", e);
+                })
+                .await;
         }
     });
 
@@ -129,17 +214,19 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
                     } else {
                         board = session.add_session(user_id);
                     }
-                    
+
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&hexagon) {
                         // match piece type to valid moves
                         let (moves, _) = get_valid_moves(&hexagon, &piece, &board);
-                        
+
                         let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
-                        tx.send(warp::ws::Message::text(serde_json::to_string(&outgoing).unwrap()))
+                        tx.send(warp::ws::Message::text(
+                            serde_json::to_string(&outgoing).unwrap(),
+                        ))
                         .unwrap();
-                }
-                drop(session);
+                    }
+                    drop(session);
                 }
                 IncomingMessage::RegisterMove {
                     user_id,
@@ -164,16 +251,16 @@ async fn handle_websocket_async(websocket: warp::ws::WebSocket, sessions: Arc<Rw
                         let (moves, double_jump) = get_valid_moves(&start_hexagon, &piece, board);
 
                         if moves.contains(&final_hexagon) {
-                            let _ = register_move(&start_hexagon, &final_hexagon, board, double_jump);
+                            let _ =
+                                register_move(&start_hexagon, &final_hexagon, board, double_jump);
                         }
                     }
                     drop(session);
                 }
             }
         }
-    };
+    }
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -191,7 +278,7 @@ async fn main() {
             .and(warp::ws())
             .and(sessions)
             .map(|ws: warp::ws::Ws, sessions| {
-                ws.on_upgrade( move|socket| handle_websocket_async(socket, sessions))
+                ws.on_upgrade(move |socket| handle_websocket_async(socket, sessions))
             });
 
     let routes = pages
@@ -204,6 +291,7 @@ async fn main() {
         .tls()
         .cert_path("./cert/playhexchess.com.crt")
         .key_path("./cert/playhexchess.com.key")
-        .run(([0, 0, 0, 0], 443))
+        // .run(([0, 0, 0, 0], 443))
+        .run(([127, 0, 0, 1], 7878))
         .await;
 }
