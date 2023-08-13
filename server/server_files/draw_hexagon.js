@@ -339,6 +339,7 @@ function start_game(is_multiplayer) {
 
 function join_game() {
   // join multiplayer
+  multiplayer_enabled = true;
   var session_id = document.getElementById("session_id").value;
   console.log(session_id);
   if (socket.readyState != socket.OPEN) {
