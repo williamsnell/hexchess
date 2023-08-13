@@ -119,7 +119,7 @@ function handle_incoming_message(message) {
   } else if (payload.op == "JoinGameSuccess") {
     console.log(payload);
     document.getElementById("session_displayer").textContent = "Session ID: " + payload.session;
-    player_color = payload.color;
+    player_color = payload.color != null ? payload.color : Color.White;
   }
 }
 
