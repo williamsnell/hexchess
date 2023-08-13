@@ -389,7 +389,7 @@ async fn main() {
         .tls()
         .cert_path("./cert/playhexchess.com.crt")
         .key_path("./cert/playhexchess.com.key")
-        // .run(([0, 0, 0, 0], 443))
-        .run(([127, 0, 0, 1], 7878))
+        .run(([0, 0, 0, 0], 443))
+        // .run(([127, 0, 0, 1], 7878))
         .await;
 }
