@@ -292,7 +292,7 @@ function request_board_state() {
 function get_matching_board_pieces(board, color) {
   var matching_pieces = {};
   Object.entries(board).forEach(
-    ([hexagon, piece]) => { let { rank, file } = parse_hexagon_string(hexagon); piece.color === color ? matching_pieces[hexagon] = { "rank": rank, "file": file } : null; });
+    ([hexagon, piece]) => { let { rank, file } = parse_hexagon_string(hexagon); matching_pieces[hexagon] = { "rank": rank, "file": file }});
   return matching_pieces;
 }
 
