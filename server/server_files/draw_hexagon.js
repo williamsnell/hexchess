@@ -186,6 +186,7 @@ var images = await get_pieces();
 
 function draw_pieces_from_board_state(board) {
   draw_board();
+  label_hexes(ctx, canvas, hex_size, draw_labels);
   for (const [position, piece] of Object.entries(board.occupied_squares)) {
     let { rank, file } = parse_hexagon_string(position);
 
