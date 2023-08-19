@@ -289,7 +289,7 @@ async fn handle_websocket_async(
                     let user_id = Uuid::parse_str(&user_id).unwrap();
 
                     let mut session = sessions.write().await;
-
+                    
                     // check if it is the player's turn to make a move
                     let test = session.get_mut_session_if_exists(user_id);
                     
