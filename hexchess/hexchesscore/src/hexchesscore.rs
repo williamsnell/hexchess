@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::{fs, path::PathBuf};
 
-use crate::moves::{self, KnightMoves, SlidingMoves};
+use crate::moves::{self, KnightMoves, SlidingMoves, get_rank_length};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PieceType {
@@ -207,7 +207,7 @@ pub fn get_valid_moves_without_checks(
     let (valid_moves, double_jump) = match piece.piece_type {
         PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => (
             get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board),
-            Option::<Hexagon>::None,
+            None,
         ),
         PieceType::Pawn => moves::pawn_moves(hexagon, &piece.color, board),
         PieceType::Knight => (
@@ -241,7 +241,7 @@ fn pieces_can_attack_king(enemy_piece_hex: &Hexagon, king_pos: &Hexagon, enemy_p
     out
 }
 
-pub fn get_attacking_pieces(enemy_color: Color, board: &Board, king_pos: &Hexagon) -> Option<Vec<(Hexagon, Piece)>> {
+pub fn get_attacking_pieces(enemy_color: Color, board: &mut Board, king_pos: &Hexagon) -> Option<Vec<(Hexagon, Piece)>> {
 
     let mut potential_pieces = get_all_pieces_of_matching_color(enemy_color, board);
 
@@ -257,7 +257,7 @@ pub fn get_attacking_pieces(enemy_color: Color, board: &Board, king_pos: &Hexago
 }
 
 
-pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, hexagon: &Hexagon, piece: &Piece, board: &mut Board) {
+pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, double_jump: Option<Hexagon>, hexagon: &Hexagon, piece: &Piece, board: &mut Board) {
     let piece_is_king = matches!(piece.piece_type, PieceType::King);
 
     let inverted_board: HashMap<Piece, Hexagon> = board.occupied_squares.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
@@ -288,11 +288,13 @@ pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, hexagon: &Hexagon, piece
 
     } else {
         let king_pos = inverted_board.get(&Piece { piece_type: PieceType::King, color: piece.color}).expect("Couldn't find the king?!?");
-        
-    
-        
+      
         // otherwise, first, see if any pieces can attack the king if the piece wasn't there. 
         // then, go through all the possible attackers
+        // We have to manually disable en-passant at this point
+        let en_passant = board.en_passant.clone();       
+        board.en_passant = None;
+
         if let Some(attackers) = get_attacking_pieces(piece.color.invert(), board, king_pos) {
             // if they can, store all the attacking pieces
             // that can reach the king
@@ -303,9 +305,7 @@ pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, hexagon: &Hexagon, piece
                 let mut king_is_safe = true;    
                 // add the moving piece into its potential board position
                 let existing_piece = board.occupied_squares.remove(hex);
-                board.occupied_squares.insert(*hex, *piece);
-    
-    
+                board.occupied_squares.insert(*hex, *piece);    
     
                 // check for potential attacks
                 for (enemy_hex, enemy_piece) in &attackers {
@@ -325,6 +325,8 @@ pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, hexagon: &Hexagon, piece
                 king_is_safe
             });
         }
+        board.en_passant = en_passant;
+
     
     }
     // add the piece back to the board
@@ -338,11 +340,11 @@ pub fn get_valid_moves(
     piece: &Piece,
     board: &mut Board,
 ) -> (Vec<Hexagon>, Option<Hexagon>) {
-    let (mut valid_moves, en_passant) = get_valid_moves_without_checks(hexagon, piece, board);
+    let (mut valid_moves, double_jump) = get_valid_moves_without_checks(hexagon, piece, board);
     // validate the king is not in check for any of the moves
     // -> this in-place mutates the valid_moves vec
-    check_moves_for_checks(&mut valid_moves, hexagon, piece, board);
-    (valid_moves, en_passant)
+    check_moves_for_checks(&mut valid_moves, double_jump, hexagon, piece, board);
+    (valid_moves, double_jump)
 }
 
 pub enum HexChessError {
@@ -403,8 +405,15 @@ pub fn register_move(
     }
 }
 
+pub fn final_hex_is_valid(final_hexagon: &Hexagon, valid_player: Color) -> bool {
+    match valid_player {
+        Color::White => final_hexagon.file > 0,
+        Color::Black => final_hexagon.file <= get_rank_length(final_hexagon.rank).unwrap()
+    }
+}
+
 fn holy_hell(board: &mut Board, final_hexagon: &Hexagon, valid_player: Color) {
-    if board.en_passant.is_some() {
+    if board.en_passant.is_some() & final_hex_is_valid(final_hexagon, valid_player) {
         let new_hex = convert_en_passant_to_virtual_pawn(final_hexagon, valid_player);
         if new_hex == board.en_passant.unwrap() {
             board.occupied_squares.remove(&new_hex).unwrap();
