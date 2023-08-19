@@ -54,7 +54,6 @@ impl PlayersPerGame {
                 players_color = Some(Color::Black);
                     },
         }
-        println!("{:?}", players_color);
         players_color
     }
 
@@ -262,14 +261,16 @@ async fn handle_websocket_async(
                 IncomingMessage::GetMoves { user_id, hexagon } => {
                     let user_id = Uuid::parse_str(&user_id).unwrap();
 
-                    let session = sessions.read().await;
+                    // we need the board mutable because we do some intermediate mutations
+                    // while checking for check, before returning the board to its original state.
+                    // probably, we should just clone the board if doing so is fast enough.
+                    let mut session = sessions.write().await;
 
-                    if let Some(valid_session) = session.get_session_if_exists(user_id) {
-                        let board = &valid_session.board;
+                    if let Some(valid_session) = session.get_mut_session_if_exists(user_id) {
                         // try and process the move
-                        if let Some(piece) = board.occupied_squares.get(&hexagon) {
+                        if let Some(piece) = valid_session.board.occupied_squares.get(&hexagon).cloned() {
                             // match piece type to valid moves
-                            let (moves, _) = get_valid_moves(&hexagon, &piece, &board);
+                            let (moves, _) = get_valid_moves(&hexagon, &piece, &mut valid_session.board);
 
                             let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
                             tx.send(warp::ws::Message::text(
@@ -293,12 +294,11 @@ async fn handle_websocket_async(
                     let test = session.get_mut_session_if_exists(user_id);
                     
                     if let Some(valid_session) =  test {
-                        println!("here!");
                         let board = &mut valid_session.board;
                         // check this player really has the right to play the next move
                         if valid_session.players.check_color(user_id, board.current_player) {
                             // try and process the move
-                            if let Some(piece) = board.occupied_squares.get(&start_hexagon) {
+                            if let Some(piece) = board.occupied_squares.get(&start_hexagon).cloned() {
                                 // match piece type to valid moves
                                 let (moves, double_jump) = get_valid_moves(&start_hexagon, &piece, board);
     
@@ -319,7 +319,6 @@ async fn handle_websocket_async(
                     drop(session);
                 }
                 IncomingMessage::JoinGame { user_id, game_id } => {
-                    println!("{:?}, {:?}", user_id, game_id);
                     let user_id = Uuid::parse_str(&user_id).unwrap();
                     let session_id = Uuid::parse_str(&game_id).unwrap();
 
@@ -386,10 +385,6 @@ async fn main() {
         .or(warp::fs::file("./server_files/404.html"));
 
     warp::serve(routes)
-        .tls()
-        .cert_path("./cert/playhexchess.com.crt")
-        .key_path("./cert/playhexchess.com.key")
-        .run(([0, 0, 0, 0], 443))
-        // .run(([127, 0, 0, 1], 7878))
+        .run(([127, 0, 0, 1], 7878))
         .await;
 }

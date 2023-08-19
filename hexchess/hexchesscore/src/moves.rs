@@ -381,9 +381,6 @@ pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon
             r - 1
         },
     ));
-
-    // ignore en passant for now, it's going to require a decently big restructure
-
     // ignore promotion for now, again a future headache
 
     moves

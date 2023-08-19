@@ -6,7 +6,7 @@ use std::{fs, path::PathBuf};
 
 use crate::moves::{self, KnightMoves, SlidingMoves};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PieceType {
     Pawn,
     Rook,
@@ -16,13 +16,23 @@ pub enum PieceType {
     King,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Color {
     White,
     Black,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Color {
+    fn invert(&self) -> Color {
+        match &self {
+            Color::Black => Color::White,
+            Color::White => Color::Black
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub color: Color,
@@ -147,14 +157,7 @@ impl Board {
     }
 }
 
-pub fn is_king_in_check(board: Board) -> bool {
-    true
-}
 
-// pub fn get_valid_moves_without_checks(hexagon: Hexagon, piece: Piece, board: Board) -> Vec<Hexagon> {
-//     // checking for check involves checking all the valid moves for attacking pieces,
-//     // so break out the functionality here
-// }
 
 fn get_blocking_sliding_moves(
     mut moves: SlidingMoves,
@@ -162,7 +165,7 @@ fn get_blocking_sliding_moves(
     board: &Board,
 ) -> Vec<Hexagon> {
     let mut valid_moves = Vec::<Hexagon>::new();
-
+    
     while let Some(hexagon) = moves.next() {
         if let Some(occupied_hex) = board.occupied_squares.get(&hexagon) {
             if occupied_hex.color != piece.color {
@@ -193,7 +196,7 @@ fn get_valid_knight_moves(moves: moves::KnightMoves, piece: &Piece, board: &Boar
     valid_moves
 }
 
-pub fn get_valid_moves(
+pub fn get_valid_moves_without_checks(
     hexagon: &Hexagon,
     piece: &Piece,
     board: &Board,
@@ -212,10 +215,134 @@ pub fn get_valid_moves(
             None,
         ),
     };
-
-    // validate the king is not in check for any of the moves
-
+    
+    
     (valid_moves, double_jump)
+}
+
+pub fn get_all_pieces_of_matching_color(color: Color, board: &Board) -> Vec<(Hexagon, Piece)> {
+    let mut vec = Vec::<(Hexagon, Piece)>::new();
+    for (hex, piece) in &board.occupied_squares {
+        if piece.color == color {
+            vec.push((*hex, *piece));
+        }
+    }
+    vec
+}
+
+fn pieces_can_attack_king(enemy_piece_hex: &Hexagon, king_pos: &Hexagon, enemy_piece: &Piece, board: &Board) -> bool {
+    let mut out = false;
+    for enemy_move in get_valid_moves_without_checks(enemy_piece_hex, enemy_piece, board).0 {
+        if &enemy_move == king_pos {
+            out = true;
+            break;
+        }
+    }
+    out
+}
+
+pub fn get_attacking_pieces(enemy_color: Color, board: &Board, king_pos: &Hexagon) -> Option<Vec<(Hexagon, Piece)>> {
+
+    let mut potential_pieces = get_all_pieces_of_matching_color(enemy_color, board);
+
+    potential_pieces.retain(|(enemy_piece_hex, enemy_piece)| {
+        pieces_can_attack_king(enemy_piece_hex, king_pos, enemy_piece, board)
+    });
+
+    if potential_pieces.len() > 0 {
+        Some(potential_pieces)
+    } else {
+        None
+    }
+}
+
+
+pub fn check_moves_for_checks(moves: &mut Vec<Hexagon>, hexagon: &Hexagon, piece: &Piece, board: &mut Board) {
+    let piece_is_king = matches!(piece.piece_type, PieceType::King);
+
+    let inverted_board: HashMap<Piece, Hexagon> = board.occupied_squares.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+    
+    // remove the moving piece from the board
+    board.occupied_squares.remove(hexagon);
+
+    if piece_is_king {
+        // if the piece is the king, see if there are any attacking pieces for each possible king move
+        moves.retain(|king_move| {
+            let king_is_safe;
+
+            // before we overwrite the board, check what is currently there
+            let existing_piece = board.occupied_squares.remove(king_move);
+            board.occupied_squares.insert(*king_move, *piece);
+            
+            match get_attacking_pieces(piece.color.invert(), board, king_move) {
+                Some(_) => king_is_safe = false,
+                None => king_is_safe = true
+            }
+
+            board.occupied_squares.remove(king_move);
+            if existing_piece.is_some(){
+                board.occupied_squares.insert(*king_move, existing_piece.unwrap());
+            }
+            king_is_safe
+        });
+
+    } else {
+        let king_pos = inverted_board.get(&Piece { piece_type: PieceType::King, color: piece.color}).expect("Couldn't find the king?!?");
+        
+    
+        
+        // otherwise, first, see if any pieces can attack the king if the piece wasn't there. 
+        // then, go through all the possible attackers
+        if let Some(attackers) = get_attacking_pieces(piece.color.invert(), board, king_pos) {
+            // if they can, store all the attacking pieces
+            // that can reach the king
+            
+            // for each move in the list,  
+            // evaluate if any of these pieces can still attack the king
+            moves.retain(|hex| {
+                let mut king_is_safe = true;    
+                // add the moving piece into its potential board position
+                let existing_piece = board.occupied_squares.remove(hex);
+                board.occupied_squares.insert(*hex, *piece);
+    
+    
+    
+                // check for potential attacks
+                for (enemy_hex, enemy_piece) in &attackers {
+                    // if the piece can't take or block the attacker, the king isn't safe in this situation
+                    if (hex != enemy_hex) & pieces_can_attack_king(enemy_hex, king_pos, enemy_piece, board) {
+                        king_is_safe = false;
+                        break;
+                    }
+                }
+                // clean up by removing the piece inserted into the board
+                board.occupied_squares.remove(hex);
+                if existing_piece.is_some(){
+                    board.occupied_squares.insert(*hex, existing_piece.unwrap());
+                }
+    
+                // if the king is safe, we can keep this move
+                king_is_safe
+            });
+        }
+    
+    }
+    // add the piece back to the board
+    board.occupied_squares.insert(*hexagon, *piece);
+
+}
+
+
+pub fn get_valid_moves(
+    hexagon: &Hexagon,
+    piece: &Piece,
+    board: &mut Board,
+) -> (Vec<Hexagon>, Option<Hexagon>) {
+    let (mut valid_moves, en_passant) = get_valid_moves_without_checks(hexagon, piece, board);
+    // validate the king is not in check for any of the moves
+    // -> this in-place mutates the valid_moves vec
+    check_moves_for_checks(&mut valid_moves, hexagon, piece, board);
+    (valid_moves, en_passant)
 }
 
 pub enum HexChessError {
