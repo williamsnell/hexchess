@@ -128,6 +128,7 @@ var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 var user_id = crypto.randomUUID();
 
 function setup_websocket() {
+  console.log(window.location.protocol)
   const BACKEND_URL = (window.location.protocol == "http:" ? "ws://" : "wss://") + window.location.hostname + ":" + window.location.port;
   const socket = new WebSocket(BACKEND_URL);
   socket.onmessage = (message) => handle_incoming_message(message);
