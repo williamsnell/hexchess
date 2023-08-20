@@ -322,7 +322,8 @@ function handle_click(event) {
 
 // set up new games
 document.getElementById("NewGame").onclick = () => start_game(false);
-document.getElementById("NewMultiplayerGame").onclick = () => start_game(true);
+document.getElementById("NewPrivateGame").onclick = () => start_game(true);
+document.getElementById("NewMultiplayerGame").onclick = () => start_default_multiplayer(true);
 
 function start_game(is_multiplayer) {
   multiplayer_enabled = is_multiplayer;
@@ -337,6 +338,19 @@ function start_game(is_multiplayer) {
     );
   }
 }
+
+function start_default_multiplayer() {
+  multiplayer_enabled = true;
+  if (socket.readyState != socket.OPEN) {
+    socket = setup_websocket();
+  }
+  else {
+    socket.send(
+      `{"op": "JoinAnyGame",
+        "user_id": "${user_id}"}`
+    );
+  }
+} 
 
 function join_game() {
   // join multiplayer

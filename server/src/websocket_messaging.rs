@@ -33,6 +33,9 @@ pub enum IncomingMessage {
     JoinGame {
         user_id: String,
         game_id: String
+    },
+    JoinAnyGame {
+        user_id: String,
     }
 }
 
@@ -42,6 +45,7 @@ pub enum OutgoingMessage<'a> {
     ValidMoves { moves: &'a Vec<Hexagon> },
     BoardState { board: &'a Board },
     JoinGameSuccess { color: Option<Color>, session: String},
+    OpponentJoined { session: String},
     JoinGameFailure
 }
 
@@ -57,6 +61,14 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             let (session_id, session, color) = session.add_session(user_id, is_multiplayer, tx.clone()); 
     
             send_join_success(color, session_id, tx, session);                        
+        }
+        IncomingMessage::JoinAnyGame { user_id } => {
+            let user_id = Uuid::parse_str(&user_id).unwrap();
+            let mut session = sessions.write().await;
+
+            let (session_id, session, color) = session.try_join_any_sessions(user_id, tx.clone()); 
+
+            send_join_success(color, session_id, tx, session);                       
         }
         IncomingMessage::GetBoard { user_id } => {
             // Get the state of the board associated with the user's ID

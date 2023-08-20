@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeSet};
 use warp::ws::Message;
 use hexchesscore::{Board, Color};
 use uuid::Uuid;
@@ -88,6 +88,7 @@ impl Game {
 pub struct SessionHandler {
     pub sessions: HashMap<SessionID, Game>,
     pub players: HashMap<PlayerID, SessionID>,
+    pub joinable_sessions: BTreeSet<SessionID>
 }
 
 impl SessionHandler {
@@ -95,6 +96,7 @@ impl SessionHandler {
         SessionHandler {
             sessions: HashMap::<SessionID, Game>::new(),
             players: HashMap::<PlayerID, SessionID>::new(),
+            joinable_sessions: BTreeSet::<SessionID>::new()
         }
     }
 
@@ -123,6 +125,11 @@ impl SessionHandler {
         if !is_multiplayer {
             player_color = None;
             new_session.players.try_add_player(user_id);
+        } else {
+            // add to the list of joinable sessions
+
+            // can send some error messages if this doesn't work
+            self.joinable_sessions.insert(session_id);
         }
         // store the session so we can find it later
         self.sessions.insert(session_id, new_session);
@@ -143,9 +150,25 @@ impl SessionHandler {
             if let Some(player_color) = players.try_add_player(user_id) {
                 self.players.insert(user_id, session_id);
                 valid_game.channels.push(transmitter.clone());
+                self.joinable_sessions.remove(&session_id);
+
                 return Some(player_color)
             }
         }
         None
+    }
+
+    pub fn try_join_any_sessions(&mut self, user_id: PlayerID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
+        // try join any of the joinable sessions
+        if let Some(game) = self.joinable_sessions.iter().next().cloned() {
+            println!("{:?}", game);
+            let color = self.try_join_session(user_id, game, transmitter.clone());
+            match color {
+                Some(color) => return (game, self.get_mut_session_if_exists(user_id).expect("couldn't get newly created game"), Some(color)),
+                None => ()
+            }
+        } 
+        // can't find any games for some reason; time to make one
+        self.add_session(user_id, true, transmitter.clone())
     }
 }

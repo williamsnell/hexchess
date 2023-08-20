@@ -17,16 +17,18 @@
   <h1 class="website_id">playhexchess.com</h1>
   <canvas id="hexagon" height="1000" width="900"></canvas>
   <div class="inputs">
-    <input id="NewMultiplayerGame" class="button1" type="button" value="Start a New Multiplayer Game">
-    <input id="NewGame" class="button1" type="button" value="Start a New Game">
+    <input id="NewMultiplayerGame" class="button1" type="button" value="Multiplayer">
+    <input id="NewGame" class="button1" type="button" value="Singleplayer">
+    <br></br>
+    <br></br>
     <br></br>
     <div>
       <span style="color:rgb(24, 29, 34);background-color: aliceblue;"> Session ID: </span>
       <br></br>
-      <span id="session_displayer" style="color:rgb(24, 29, 34);background-color: aliceblue;"> </span>
+      <span id="session_displayer" style="color:rgb(24, 29, 34);background-color: aliceblue;"></span>
     </div>
-    <br></br>
     <div>
+      <input id="NewPrivateGame" class="button1" type="button" value="Create a Private Game">
       <input id="session_id" type="text" class="button1" id="session_input" placeholder="Enter Session ID">
       <input id="join_session_button" class="button1" type="submit" name="JoinSession" value="Join Session">
     </div>
@@ -68,6 +70,7 @@
   .button1 {
     transition-duration: 0.4s;
     padding: 0.2rem;
+    width: 20%;
   }
 
   .button1:hover {
