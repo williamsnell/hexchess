@@ -358,3 +358,18 @@ function join_game() {
 document.getElementById("join_session_button").onclick = () => join_game();
 
 canvas.addEventListener("click", handle_click);
+
+let default_draw = () => {
+  let size = Math.min(window.innerWidth, window.innerHeight * 0.7);
+  ctx.canvas.width = size;
+  ctx.canvas.height = size * 1.1;
+  hex_size = canvas.width * 0.058;
+
+  draw_board();
+  if (board != null) {
+    draw_pieces_from_board_state(board);
+  }
+};
+
+window.addEventListener("resize", default_draw);
+window.addEventListener("load", default_draw);
