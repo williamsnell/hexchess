@@ -118,7 +118,7 @@ function handle_incoming_message(message) {
     draw_pieces_from_board_state(payload.board);
   } else if (payload.op == "JoinGameSuccess") {
     console.log(payload);
-    document.getElementById("session_displayer").textContent = "Session ID: " + payload.session;
+    document.getElementById("session_displayer").textContent = payload.session;
     player_color = payload.color != null ? payload.color : Color.White;
   }
 }
@@ -355,8 +355,6 @@ function join_game() {
   }
 }
 
-
 document.getElementById("join_session_button").onclick = () => join_game();
-
 
 canvas.addEventListener("click", handle_click);
