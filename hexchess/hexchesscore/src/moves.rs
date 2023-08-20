@@ -1,7 +1,9 @@
 use std::{cmp::min, iter::zip, vec::Vec};
 
 use crate::{
-    hexchesscore::{convert_en_passant_to_virtual_pawn, final_hex_is_valid, Board, Color, Hexagon, Piece},
+    hexchesscore::{
+        convert_en_passant_to_virtual_pawn, final_hex_is_valid, Board, Color, Hexagon, Piece,
+    },
     PieceType,
 };
 
@@ -421,10 +423,25 @@ pub fn pawn_moves(
     let double_jump = pawn_moves_double_jump(hexagon, color, board);
 
     for hex in attacking {
-        if board.en_passant.is_some() & final_hex_is_valid(&hex, *color) {
-            let virtual_pawn = convert_en_passant_to_virtual_pawn(&hex, *color);
-            if virtual_pawn == board.en_passant.unwrap() {
-                valid_moves.push(hex);
+        if board.en_passant.is_some() {
+            if board
+                .occupied_squares
+                .get(&board.en_passant.unwrap())
+                .is_some()
+            {
+                if (board
+                    .occupied_squares
+                    .get(&board.en_passant.unwrap())
+                    .unwrap()
+                    .color
+                    != *color)
+                    & final_hex_is_valid(&hex, *color)
+                {
+                    let virtual_pawn = convert_en_passant_to_virtual_pawn(&hex, *color);
+                    if virtual_pawn == board.en_passant.unwrap() {
+                        valid_moves.push(hex);
+                    }
+                }
             }
         }
         if let Some(occupied_hex) = board.occupied_squares.get(&hex) {
