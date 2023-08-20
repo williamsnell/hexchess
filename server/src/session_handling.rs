@@ -94,40 +94,6 @@ impl Game {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "op")]
-pub enum IncomingMessage {
-    GetBoard {
-        user_id: String,
-    },
-    GetMoves {
-        user_id: String,
-        hexagon: Hexagon,
-    },
-    RegisterMove {
-        user_id: String,
-        start_hexagon: Hexagon,
-        final_hexagon: Hexagon,
-    },
-    CreateGame {
-        user_id: String,
-        is_multiplayer: bool,
-    },
-    JoinGame {
-        user_id: String,
-        game_id: String
-    }
-}
-
-#[derive(Serialize, Debug)]
-#[serde(tag = "op")]
-pub enum OutgoingMessage<'a> {
-    ValidMoves { moves: &'a Vec<Hexagon> },
-    BoardState { board: &'a Board },
-    JoinGameSuccess { color: Option<Color>, session: String},
-    JoinGameFailure
-}
-
 #[derive(Debug)]
 pub struct SessionHandler {
     pub sessions: HashMap<SessionID, Game>,
