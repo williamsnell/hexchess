@@ -88,7 +88,7 @@ impl Game {
 pub struct SessionHandler {
     pub sessions: HashMap<SessionID, Game>,
     pub players: HashMap<PlayerID, SessionID>,
-    pub joinable_sessions: BTreeSet<SessionID>
+    pub joinable_sessions: Vec<SessionID>
 }
 
 impl SessionHandler {
@@ -96,7 +96,7 @@ impl SessionHandler {
         SessionHandler {
             sessions: HashMap::<SessionID, Game>::new(),
             players: HashMap::<PlayerID, SessionID>::new(),
-            joinable_sessions: BTreeSet::<SessionID>::new()
+            joinable_sessions: Vec::<SessionID>::new()
         }
     }
 
@@ -129,7 +129,7 @@ impl SessionHandler {
             // add to the list of joinable sessions
 
             // can send some error messages if this doesn't work
-            self.joinable_sessions.insert(session_id);
+            self.joinable_sessions.push(session_id);
         }
         // store the session so we can find it later
         self.sessions.insert(session_id, new_session);
@@ -150,7 +150,8 @@ impl SessionHandler {
             if let Some(player_color) = players.try_add_player(user_id) {
                 self.players.insert(user_id, session_id);
                 valid_game.channels.push(transmitter.clone());
-                self.joinable_sessions.remove(&session_id);
+                // delete the session
+                self.joinable_sessions.retain(|val| val != &session_id);
 
                 return Some(player_color)
             }
@@ -160,7 +161,10 @@ impl SessionHandler {
 
     pub fn try_join_any_sessions(&mut self, user_id: PlayerID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
         // try join any of the joinable sessions
-        if let Some(game) = self.joinable_sessions.iter().next().cloned() {
+
+        // we pop this game off the list so that if it isn't joinable,
+        // it doesn't stay in the list of joinables
+        if let Some(game) = self.joinable_sessions.pop() {
             println!("{:?}", game);
             let color = self.try_join_session(user_id, game, transmitter.clone());
             match color {
