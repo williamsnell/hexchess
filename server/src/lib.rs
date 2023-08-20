@@ -3,6 +3,8 @@ use std::{
     thread,
 };
 
+pub mod session_handling;
+
 pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: Option<mpsc::Sender<Job>>,

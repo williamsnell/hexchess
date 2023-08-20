@@ -1,8 +1,9 @@
 
 use futures::{SinkExt, StreamExt, TryFutureExt};
-use hexchesscore::{get_valid_moves, register_move, Board, Color, Hexagon};
+use hexchesscore::{get_valid_moves, register_move, Color};
 use serde::{Deserialize, Serialize};
 
+use server::session_handling;
 use warp::ws::Message;
 use std::{collections::HashMap, sync::Arc};
 use tokio;
@@ -11,192 +12,9 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::Filter;
 
-#[derive(Debug)]
-struct PlayersPerGame {
-    black: Option<PlayerID>,
-    white: Option<PlayerID>,
-}
-
-impl PlayersPerGame {
-    fn new(first_player: PlayerID) -> (Color, PlayersPerGame) {
-        // pseudo-randomly pick whether the first player is
-        // black or white
-        match first_player.as_fields().0 % 2 {
-            0 => (Color::Black, PlayersPerGame {
-                black: Some(first_player),
-                white: None,
-            }),
-            1 => (Color::White, PlayersPerGame {
-                black: None,
-                white: Some(first_player),
-            }),
-            _ => panic!("shouldn't be able to get here!")
-        }
-    }
-    fn try_add_player(&mut self, second_player: PlayerID) -> Option<Color> {
-        // this function tries to add a player, but 
-        // if the second slot is already occupied,
-        // it silently fails.
-        // worth thinking about if this should raise an error
-        // instead
-        let players_color;
-        match self.black {
-            Some(_) => {
-                if self.white == None {
-                    self.white = Some(second_player);
-                    players_color = Some(Color::White);
-                } else {
-                    players_color = None;
-                }
-            }
-            None => {
-                self.black = Some(second_player);
-                players_color = Some(Color::Black);
-                    },
-        }
-        players_color
-    }
-
-    fn check_color(&self, player: PlayerID, color: Color) -> bool {
-        if color == Color::Black {
-            self.black == Some(player)
-        } else if color == Color::White {
-            self.white == Some(player)
-        } else {
-            false
-        }
-
-    }
-
-
-
-}
-// each session has a uuid.
-// when a player joins a multiplayer game, their session is added as a key that can
-// access that session
-
-type SessionID = Uuid;
-type PlayerID = Uuid;
-
-#[derive(Debug)]
-pub struct Game {
-    board: Board,
-    players: PlayersPerGame,
-    channels: Vec<tokio::sync::mpsc::UnboundedSender<Message>>
-}
-
-impl Game {
-    fn new(user_id: PlayerID, transmitter: &tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, Game, Color) {
-        let board = Board::setup_default_board();
-        let (color, players) = PlayersPerGame::new(user_id);
-        let session_id = Uuid::new_v4();
-        (session_id, Game {board: board, players: players, channels: vec![transmitter.clone()]}, color)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "op")]
-enum IncomingMessage {
-    GetBoard {
-        user_id: String,
-    },
-    GetMoves {
-        user_id: String,
-        hexagon: Hexagon,
-    },
-    RegisterMove {
-        user_id: String,
-        start_hexagon: Hexagon,
-        final_hexagon: Hexagon,
-    },
-    CreateGame {
-        user_id: String,
-        is_multiplayer: bool,
-    },
-    JoinGame {
-        user_id: String,
-        game_id: String
-    }
-}
-
-#[derive(Serialize, Debug)]
-#[serde(tag = "op")]
-enum OutgoingMessage<'a> {
-    ValidMoves { moves: &'a Vec<Hexagon> },
-    BoardState { board: &'a Board },
-    JoinGameSuccess { color: Option<Color>, session: String},
-    JoinGameFailure
-}
-
-#[derive(Debug)]
-pub struct SessionHandler {
-    sessions: HashMap<SessionID, Game>,
-    players: HashMap<PlayerID, SessionID>,
-}
-
-impl SessionHandler {
-    fn new() -> SessionHandler {
-        SessionHandler {
-            sessions: HashMap::<SessionID, Game>::new(),
-            players: HashMap::<PlayerID, SessionID>::new(),
-        }
-    }
-
-    fn get_session_if_exists(&self, user_id: Uuid) -> Option<&Game> {
-        let session_id = self.players.get(&user_id);
-        match session_id {
-            Some(session) => self.sessions.get(&session),
-            None => None,
-        }
-    }
-
-    fn get_mut_session_if_exists(&mut self, user_id: Uuid) -> Option<&mut Game> {
-        let session_id = self.players.get(&user_id);
-        match session_id {
-            Some(session) => self.sessions.get_mut(&session),
-            None => None,
-        }
-    }
-
-    fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
-        let (session_id, mut new_session, player_color) = Game::new(user_id, &transmitter);
-        // if multiplayer, just add the one player for the moment,
-        // which is performed in the session::new() setup.
-        // if single-player, both player slots are the same player
-        let mut player_color = Some(player_color);
-        if !is_multiplayer {
-            player_color = None;
-            new_session.players.try_add_player(user_id);
-        }
-        // store the session so we can find it later
-        self.sessions.insert(session_id, new_session);
-
-        // add the player to players so we can find their game easily in the future
-        self.players.insert(user_id, session_id);
-
-        (session_id, self.get_mut_session_if_exists(user_id)
-            .expect("Failure creating session"), player_color)
-    }
-
-    fn try_join_session(&mut self, user_id: PlayerID, session_id: SessionID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> Option<Color> {
-        // try and join a session. If the session is already full,
-        // or it doesn't exist, silently fail.
-        let game = self.sessions.get_mut(&session_id);
-        if let Some(valid_game) = game {
-            let players = &mut valid_game.players;
-            if let Some(player_color) = players.try_add_player(user_id) {
-                self.players.insert(user_id, session_id);
-                valid_game.channels.push(transmitter.clone());
-                return Some(player_color)
-            }
-        }
-        None
-    }
-}
-
 async fn handle_websocket_async(
     websocket: warp::ws::WebSocket,
-    sessions: Arc<RwLock<SessionHandler>>,
+    sessions: Arc<RwLock<session_handling::SessionHandler>>,
 ) {
     // split the socket into a sender and a receiver
     let (mut ws_tx, mut ws_rx) = websocket.split();
@@ -232,10 +50,10 @@ async fn handle_websocket_async(
             }
         };
         if message.is_text() {
-            let decoded: IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
+            let decoded: session_handling::IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
 
             match decoded {
-                IncomingMessage::CreateGame { user_id, is_multiplayer } => {
+                session_handling::IncomingMessage::CreateGame { user_id, is_multiplayer } => {
                     let user_id = Uuid::parse_str(&user_id).unwrap();
                     let mut session = sessions.write().await;
 
@@ -243,7 +61,7 @@ async fn handle_websocket_async(
                     
                     send_join_success(color, session_id, &tx, session);                        
                 }
-                IncomingMessage::GetBoard { user_id } => {
+                session_handling::IncomingMessage::GetBoard { user_id } => {
                     // Get the state of the board associated with the user's ID
                     //
                     // If the game doesn't exist, do nothing
@@ -258,7 +76,7 @@ async fn handle_websocket_async(
                     }
                     drop(session);
                 }
-                IncomingMessage::GetMoves { user_id, hexagon } => {
+                session_handling::IncomingMessage::GetMoves { user_id, hexagon } => {
                     let user_id = Uuid::parse_str(&user_id).unwrap();
 
                     // we need the board mutable because we do some intermediate mutations
@@ -272,7 +90,7 @@ async fn handle_websocket_async(
                             // match piece type to valid moves
                             let (moves, _) = get_valid_moves(&hexagon, &piece, &mut valid_session.board);
 
-                            let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
+                            let outgoing = session_handling::OutgoingMessage::ValidMoves { moves: &moves };
                             tx.send(warp::ws::Message::text(
                                 serde_json::to_string(&outgoing).unwrap(),
                             ))
@@ -281,7 +99,7 @@ async fn handle_websocket_async(
                     }
                     drop(session);
                 }
-                IncomingMessage::RegisterMove {
+                session_handling::IncomingMessage::RegisterMove {
                     user_id,
                     start_hexagon,
                     final_hexagon,
@@ -318,11 +136,11 @@ async fn handle_websocket_async(
                     }
                     drop(session);
                 }
-                IncomingMessage::JoinGame { user_id, game_id } => {
+                session_handling::IncomingMessage::JoinGame { user_id, game_id } => {
                     let user_id = Uuid::parse_str(&user_id).unwrap();
                     let session_id = Uuid::parse_str(&game_id).unwrap();
 
-                    let mut session: tokio::sync::RwLockWriteGuard<'_, SessionHandler> = sessions.write().await;
+                    let mut session: tokio::sync::RwLockWriteGuard<'_, session_handling::SessionHandler> = sessions.write().await;
 
                     let color = session.try_join_session(user_id, session_id, tx.clone());
 
@@ -337,8 +155,8 @@ async fn handle_websocket_async(
     }
 }
 
-fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::UnboundedSender<warp::ws::Message>, session: &mut Game) {
-    let message = OutgoingMessage::JoinGameSuccess { color: color, session: session_id.to_string() };
+fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::UnboundedSender<warp::ws::Message>, session: &mut session_handling::Game) {
+    let message = session_handling::OutgoingMessage::JoinGameSuccess { color: color, session: session_id.to_string() };
     if let Ok(success_message) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(success_message)).unwrap();
     
@@ -349,9 +167,9 @@ fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::Unbounde
     }
 }
 
-fn send_board(valid_session: &Game, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
+fn send_board(valid_session: &session_handling::Game, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
     let board = &valid_session.board;
-    let message = OutgoingMessage::BoardState { board: board };
+    let message = session_handling::OutgoingMessage::BoardState { board: board };
     if let Ok(new_board_state) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(new_board_state)).unwrap();
     } else {
@@ -366,7 +184,7 @@ async fn main() {
 
     let pages = warp::fs::dir("./server_files/");
 
-    let sessions: Arc<RwLock<SessionHandler>> = Arc::new(RwLock::new(SessionHandler::new()));
+    let sessions: Arc<RwLock<session_handling::SessionHandler>> = Arc::new(RwLock::new(session_handling::SessionHandler::new()));
 
     let sessions = warp::any().map(move || sessions.clone());
 
