@@ -365,6 +365,8 @@ let default_draw = () => {
   ctx.canvas.height = size * 1.1;
   hex_size = canvas.width * 0.058;
 
+  hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
+
   draw_board();
   if (board != null) {
     draw_pieces_from_board_state(board);
