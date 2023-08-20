@@ -28,7 +28,7 @@ function draw_hexagon_column(number_of_hexagons, x, y_center, size) {
   return y_positions;
 }
 
-var hex_size = canvas.width * 0.05;
+var hex_size = canvas.width * 0.058;
 
 var knight = new Image();
 knight.src = "assets/pieces/knight_white.svg";
