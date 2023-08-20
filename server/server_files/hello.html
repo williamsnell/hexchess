@@ -1,59 +1,74 @@
 <!doctype html>
 <html lang="en-US">
-  <head>
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon//favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon//favicon-16x16.png">
-    <link rel="manifest" href="assets/favicon//site.webmanifest">
-    <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#ffffff">
-    <meta charset="utf-8" />
-    <title>HEXCHESSSSSS</title>
-    <style>
-      #hexagon { 
-        border: transparent; 
-        background: transparent;
-      }
-      body {
-        background: rgb(52, 52, 71);
-        background: linear-gradient(0deg, rgb(52, 52, 71) 0%, rgb(42, 76, 83) 100%);
-      }
-      .website_id {
-        color: rgb(255, 255, 255);
-        background-color: rgb(0, 0, 0);
-        width: 13.2rem;
-        padding-left: 0.2rem;
-        font-family: Arial, Helvetica, sans-serif;
-        font-weight: bolder;
-      }
-      .button1 {
-        transition-duration: 0.4s;
-        padding: 0.2rem;
-      }
-      .button1:hover {
-        background-color: #747992; /* Green */
-        color: white;
-      }
-    </style>
-  </head>
-  <body style="background-color: rgb(24, 29, 34);">
-    <script src="draw_hexagon.js", type="module"></script>
-    <h1 class="website_id">playhexchess.com</h1>
-    <canvas id="hexagon" height="1000" width="1000"></canvas>
-    <div class="inputs">
-      <input id="NewMultiplayerGame" class="button1" type="button" value="Start a New Multiplayer Game">
-      <input id="NewGame" class="button1" type="button" value="Start a New Game">
+
+<head>
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon//favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon//favicon-16x16.png">
+  <link rel="manifest" href="assets/favicon//site.webmanifest">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+  <meta charset="utf-8" />
+  <title>HEXCHESSSSSS</title>
+</head>
+
+<body style="background-color: rgb(24, 29, 34);">
+  <script src="draw_hexagon.js" , type="module"></script>
+  <h1 class="website_id">playhexchess.com</h1>
+  <canvas id="hexagon" height="1000" width="1000"></canvas>
+  <div class="inputs">
+    <input id="NewMultiplayerGame" class="button1" type="button" value="Start a New Multiplayer Game">
+    <input id="NewGame" class="button1" type="button" value="Start a New Game">
+    <br></br>
+    <div>
+      <span style="color:rgb(24, 29, 34);background-color: aliceblue;"> Session ID: </span>
       <br></br>
-      <div>
-        <span style="color:rgb(24, 29, 34);background-color: aliceblue;"> Session ID: </span>
-        <br></br>
-        <span id="session_displayer" style="color:rgb(24, 29, 34);background-color: aliceblue;"> </span>
-      </div>
-      <br></br>
-      <div>
-        <input id="session_id" type="text" class="button1" id="session_input" placeholder="Enter Session ID">
-        <input id="join_session_button" class="button1" type="submit" name="JoinSession" value="Join Session">
-      </div>
+      <span id="session_displayer" style="color:rgb(24, 29, 34);background-color: aliceblue;"> </span>
     </div>
-  </body>
+    <br></br>
+    <div>
+      <input id="session_id" type="text" class="button1" id="session_input" placeholder="Enter Session ID">
+      <input id="join_session_button" class="button1" type="submit" name="JoinSession" value="Join Session">
+    </div>
+  </div>
+</body>
+
 </html>
+
+<style>
+  #hexagon {
+    border: transparent;
+    background: transparent;
+  }
+  html {
+    height: 100%;
+  }
+
+  body {
+    height: 100%;
+    margin: 0px;
+    background: rgb(52, 52, 71);
+    background: linear-gradient(0deg, rgb(52, 52, 71) 0%, rgb(42, 76, 83) 100%);
+    background-attachment: fixed;
+  }
+
+  .website_id {
+    color: rgb(255, 255, 255);
+    background-color: rgb(0, 0, 0);
+    width: 13.2rem;
+    padding-left: 0.2rem;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bolder;
+  }
+
+  .button1 {
+    transition-duration: 0.4s;
+    padding: 0.2rem;
+  }
+
+  .button1:hover {
+    background-color: #747992;
+    /* Green */
+    color: white;
+  }
+</style>
