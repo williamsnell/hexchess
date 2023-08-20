@@ -1,14 +1,7 @@
-
-
 use std::collections::HashMap;
-
 use warp::ws::Message;
-
-use hexchesscore::Board;
-
+use hexchesscore::{Board, Color};
 use uuid::Uuid;
-
-use hexchesscore::Color;
 
 #[derive(Debug)]
 pub struct PlayersPerGame {
