@@ -56,6 +56,8 @@ async fn main() {
     // handle the page-serving side of the website
     let default = warp::path::end().and(warp::fs::file("./server_files/hello.html"));
 
+    let join = warp::path("join").and(warp::fs::file("./server_files/hello.html"));
+
     let pages = warp::fs::dir("./server_files/");
 
     let sessions: Arc<RwLock<session_handling::SessionHandler>> = Arc::new(RwLock::new(session_handling::SessionHandler::new()));
@@ -71,6 +73,7 @@ async fn main() {
             });
 
     let routes = pages
+        .or(join)
         .or(websocket)
         .or(default)
         // serve 404s if the file doesn't exist and the client isn't asking for the default page

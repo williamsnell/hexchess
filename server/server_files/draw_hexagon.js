@@ -118,7 +118,7 @@ function handle_incoming_message(message) {
     draw_pieces_from_board_state(payload.board);
   } else if (payload.op == "JoinGameSuccess") {
     console.log(payload);
-    document.getElementById("session_displayer").textContent = payload.session;
+    document.getElementById("session_displayer").textContent = window.location.protocol + "//" + window.location.hostname + "/join?" + payload.session;
     player_color = payload.color != null ? payload.color : Color.White;
   }
 }
@@ -352,10 +352,9 @@ function start_default_multiplayer() {
   }
 } 
 
-function join_game() {
+function join_game(session_id) {
   // join multiplayer
   multiplayer_enabled = true;
-  var session_id = document.getElementById("session_id").value;
   console.log(session_id);
   if (socket.readyState != socket.OPEN) {
     socket = setup_websocket();
@@ -369,7 +368,14 @@ function join_game() {
   }
 }
 
-document.getElementById("join_session_button").onclick = () => join_game();
+document.getElementById("join_session_button").onclick = () => join_game(document.getElementById("session_id").value);
+
+// also try join the game if the user was sent a "join" link
+let path = window.location.href.split("/");
+console.log(path);
+if (path[3].indexOf("?") != -1) {
+  join_game(path[3].split("?")[1])
+}
 
 canvas.addEventListener("click", handle_click);
 
