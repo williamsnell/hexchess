@@ -4,6 +4,7 @@
 .eslintrc.json
 
 # Node
+/frontend
 /node_modules
 
 # Certificates
