@@ -262,7 +262,6 @@ pub fn get_attacking_pieces(
 
 pub fn check_moves_for_checks(
     moves: &mut Vec<Hexagon>,
-    double_jump: Option<Hexagon>,
     hexagon: &Hexagon,
     piece: &Piece,
     board: &mut Board,
@@ -360,7 +359,7 @@ pub fn get_valid_moves(
     let (mut valid_moves, double_jump) = get_valid_moves_without_checks(hexagon, piece, board);
     // validate the king is not in check for any of the moves
     // -> this in-place mutates the valid_moves vec
-    check_moves_for_checks(&mut valid_moves, double_jump, hexagon, piece, board);
+    check_moves_for_checks(&mut valid_moves,  hexagon, piece, board);
     (valid_moves, double_jump)
 }
 

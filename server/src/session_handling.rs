@@ -2,9 +2,6 @@
 
 use std::collections::HashMap;
 
-use hexchesscore::Hexagon;
-
-use serde::{Serialize, Deserialize};
 use warp::ws::Message;
 
 use hexchesscore::Board;
