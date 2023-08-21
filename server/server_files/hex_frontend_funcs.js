@@ -73,31 +73,31 @@ function get_centre_of_hex_structure(number_of_hexagons) {
   return (number_of_hexagons / 2 - 0.5);
 }
 
-function calc_column_x_position(column, hex_size, canvas) {
+function calc_column_x_position(column, hex_size, canvas, orientation) {
   var x_start = canvas.width / 2 - get_centre_of_hex_structure(11) * calc_hex_x_offset(hex_size);
   // Calculate the x-offset of a given column
-  return x_start + column * calc_hex_x_offset(hex_size);
+  return (1 - orientation) * canvas.width/2 + orientation * (x_start + column * calc_hex_x_offset(hex_size));
 }
 
-export function calc_column_y_positions(number_of_hexagons, y_center, size) {
+export function calc_column_y_positions(number_of_hexagons, y_center, size, canvas, orientation) {
   var y2 = get_centre_of_hex_structure(number_of_hexagons) * calc_hex_ysize(size) + y_center;
   var y = [];
   for (var i = 0; i < number_of_hexagons; i += 1) {
-    y.push(size * i * (2 * Math.sin(deg2rad(120))) + y2);
+    y.push((1 - orientation) * canvas.height/2 + orientation * (size * i * (2 * Math.sin(deg2rad(120))) + y2));
   }
   return y;
 }
 
 
-function calc_row_position(row, column, canvas, hex_size) {
+function calc_row_position(row, column, canvas, hex_size, orientation) {
   var number_of_vertical_hexes = vertical_hexagons_per_column[column];
   var min_y = canvas.height / 2 - calc_hex_ysize(hex_size) * (number_of_vertical_hexes - 1) / 2;
-  return min_y + calc_hex_ysize(hex_size) * row;
+  return (1 - orientation) * canvas.height/2 + orientation * (min_y + calc_hex_ysize(hex_size) * row);
 }
 
-function get_hexagon_position(rank, file, canvas, hex_size) {
-  var x = calc_column_x_position(rank, hex_size, canvas);
-  var y = calc_row_position(file, rank, canvas, hex_size);
+function get_hexagon_position(rank, file, canvas, hex_size, orientation) {
+  var x = calc_column_x_position(rank, hex_size, canvas, orientation);
+  var y = calc_row_position(file, rank, canvas, hex_size, orientation);
   return [x, y];
 }
 

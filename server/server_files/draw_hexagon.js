@@ -22,8 +22,10 @@ function get_hex_color(i, number_of_hexagons) {
   return colour;
 }
 
+let orientation = 1;
+
 function draw_hexagon_column(number_of_hexagons, x, y_center, size) {
-  var y_positions = calc_column_y_positions(number_of_hexagons, y_center, size);
+  var y_positions = calc_column_y_positions(number_of_hexagons, y_center, size, canvas, orientation);
   y_positions.forEach((val, index) => draw_hexagon(size, x, val, get_hex_color(index, number_of_hexagons), ctx));
   return y_positions;
 }
@@ -34,7 +36,7 @@ var knight = new Image();
 knight.src = "assets/pieces/knight_white.svg";
 
 function draw_hex_callback(element, index) {
-  var x_positions = Array(element).fill([calc_column_x_position(index, hex_size, canvas)]).flat();
+  var x_positions = Array(element).fill([calc_column_x_position(index, hex_size, canvas, orientation)]).flat();
   var y_positions = draw_hexagon_column(element, x_positions[0], canvas.height * 0.5, hex_size);
   var out = [];
   for (let i = 0; i < x_positions.length; i++) {
@@ -48,7 +50,7 @@ function label_hexes(context, canvas, hex_size, show = true) {
   for (var i = 0; i < files.length; i++) {
     for (var j = 0; j <= vertical_hexagons_per_column[i] - 1; j++) {
       var x, y;
-      [x, y] = get_hexagon_position(i, j, canvas, hex_size);
+      [x, y] = get_hexagon_position(i, j, canvas, hex_size, orientation);
       context.fillStyle = "#000000";
       context.font = "15px arial";
       var chess_coord = (String(files[i]).toUpperCase() + String(j + 1));
@@ -96,7 +98,7 @@ function draw_dot_x_y(x, y, radius = 0.3 * hex_size) {
 
 function draw_dot(rank, file) {
   var x, y;
-  [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
+  [x, y] = get_hexagon_position(rank, file, canvas, hex_size, orientation);
   draw_dot_x_y(x, y);
 }
 
@@ -123,6 +125,10 @@ function handle_incoming_message(message) {
     // make sure the link is clickable
     document.getElementById("session_displayer").addEventListener("click", () =>  navigator.clipboard.writeText(session_id));
     player_color = payload.color != null ? payload.color : Color.White;
+    orientation = player_color == Color.White ? 1 : -1;
+    // recompute the board positions since it may have flipped
+    hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
+
   }
 }
 
@@ -195,7 +201,7 @@ function draw_pieces_from_board_state(board) {
 
     var x, y;
 
-    [x, y] = get_hexagon_position(rank, file, canvas, hex_size);
+    [x, y] = get_hexagon_position(rank, file, canvas, hex_size, orientation);
 
     let image_size = hex_size * 1.4;
     let image = images[`${piece.color},${piece.piece_type}`];
@@ -214,7 +220,7 @@ function process_clickables(clickable, event, target_size, func) {
   const mouse_y = event.offsetY;
   for (let i = 0; i < clickable.length; i++) {
     var x, y;
-    [x, y] = get_hexagon_position(clickable[i].rank, clickable[i].file, canvas, hex_size);
+    [x, y] = get_hexagon_position(clickable[i].rank, clickable[i].file, canvas, hex_size, orientation);
     if (((mouse_x - x) ** 2 + (mouse_y - y) ** 2) < target_size ** 2) {
       func(clickable[i]);
       break;
@@ -230,7 +236,7 @@ function show_available_moves(piece) {
   // send a message to the websocket to get the 
   // valid moves.
   var x, y;
-  [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size);
+  [x, y] = get_hexagon_position(piece.rank, piece.file, canvas, hex_size, orientation);
 
   // socket.onmessage = (msg) => { parse_moves(msg.data); };
 
@@ -254,10 +260,10 @@ function select_piece(piece) {
 function move_piece(destination_hex) {
   // send a message to register a piece moving
   var dest_x, dest_y;
-  [dest_x, dest_y] = get_hexagon_position(destination_hex.rank, destination_hex.file, canvas, hex_size);
+  [dest_x, dest_y] = get_hexagon_position(destination_hex.rank, destination_hex.file, canvas, hex_size, orientation);
 
   var x, y;
-  [x, y] = get_hexagon_position(selected_piece.rank, selected_piece.file, canvas, hex_size);
+  [x, y] = get_hexagon_position(selected_piece.rank, selected_piece.file, canvas, hex_size, orientation);
 
   //
   // socket.onmessage = (msg) => { draw_board(); draw_pieces_from_board_state(JSON.parse(msg.data).occupied_squares); };
@@ -276,8 +282,14 @@ function move_piece(destination_hex) {
   request_board_state();
   if (!multiplayer_enabled) {
     if (player_color == "Black") {
+      orientation = 1;
+      // need to recompute the label positions, now the board has flipped
+      hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
       player_color = "White";
     } else {
+      orientation = -1;
+      // need to recompute the label positions, now the board has flipped
+      hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
       player_color = "Black";
     }
   }
