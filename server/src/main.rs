@@ -2,6 +2,8 @@
 use futures::{SinkExt, StreamExt, TryFutureExt};
 
 use server::{session_handling, websocket_messaging};
+use uuid::Uuid;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio;
 use tokio::sync::{mpsc, RwLock};
@@ -36,6 +38,8 @@ async fn handle_websocket_async(
         }
     });
 
+    let mut user_ids_on_websocket = HashSet::<Uuid>::new();
+
     // Listen for messages from the client, and do something with them
     while let Some(result) = ws_rx.next().await {
         let message = match result {
@@ -46,9 +50,18 @@ async fn handle_websocket_async(
             }
         };
         if message.is_text() {
-            websocket_messaging::handle_incoming_ws_message(message, &sessions, &tx).await;
+            websocket_messaging::handle_incoming_ws_message(message, &sessions, &tx, &mut user_ids_on_websocket).await;
         }
     }
+
+    // when the websocket closes, do some cleanup
+    // go through all the sessions that the player was subscribed to
+    let mut session = sessions.write().await;
+    for id in user_ids_on_websocket {
+        session.delete_player(id);
+    }
+
+
 }
 
 #[tokio::main]

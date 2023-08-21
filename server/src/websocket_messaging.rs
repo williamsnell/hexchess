@@ -6,6 +6,8 @@ use tokio::sync::{mpsc, RwLock};
 
 use std::sync::Arc;
 
+use std::collections::HashSet;
+
 use warp::ws::Message;
 
 use crate::session_handling;
@@ -49,24 +51,26 @@ pub enum OutgoingMessage<'a> {
     JoinGameFailure
 }
 
-
-pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<session_handling::SessionHandler>>, tx: &mpsc::UnboundedSender<Message>) {
+pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<session_handling::SessionHandler>>, tx: &mpsc::UnboundedSender<Message>, user_ids_on_websocket: &mut HashSet<Uuid>) {
     let decoded: IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
+
+    let uuid_user_id;
 
     match decoded {
         IncomingMessage::CreateGame { user_id, is_multiplayer } => {
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
+
             let mut session = sessions.write().await;
 
-            let (session_id, session, color) = session.add_session(user_id, is_multiplayer, tx.clone()); 
+            let (session_id, session, color) = session.add_session(uuid_user_id, is_multiplayer, false, tx.clone()); 
     
             send_join_success(color, session_id, tx, session);                        
         }
         IncomingMessage::JoinAnyGame { user_id } => {
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
             let mut session = sessions.write().await;
 
-            let (session_id, session, color) = session.try_join_any_sessions(user_id, tx.clone()); 
+            let (session_id, session, color) = session.try_join_any_sessions(uuid_user_id, tx.clone()); 
 
             send_join_success(color, session_id, tx, session);                       
         }
@@ -74,11 +78,11 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             // Get the state of the board associated with the user's ID
             //
             // If the game doesn't exist, do nothing
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
             let session = sessions.read().await;
 
-            if let Some(valid_session) = session.get_session_if_exists(user_id) {
+            if let Some(valid_session) = session.get_session_if_exists(uuid_user_id) {
                 send_board(valid_session, tx);
             } else {
                 eprintln!("User doesn't have an existing game");
@@ -86,14 +90,14 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             drop(session);
         }
         IncomingMessage::GetMoves { user_id, hexagon } => {
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
             // we need the board mutable because we do some intermediate mutations
             // while checking for check, before returning the board to its original state.
             // probably, we should just clone the board if doing so is fast enough.
             let mut session = sessions.write().await;
 
-            if let Some(valid_session) = session.get_mut_session_if_exists(user_id) {
+            if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
                 // try and process the move
                 if let Some(piece) = valid_session.board.occupied_squares.get(&hexagon).cloned() {
                     // match piece type to valid moves
@@ -113,17 +117,17 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             start_hexagon,
             final_hexagon,
         } => {
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
             let mut session = sessions.write().await;
     
             // check if it is the player's turn to make a move
-            let test = session.get_mut_session_if_exists(user_id);
+            let test = session.get_mut_session_if_exists(uuid_user_id);
     
             if let Some(valid_session) =  test {
                 let board = &mut valid_session.board;
                 // check this player really has the right to play the next move
-                if valid_session.players.check_color(user_id, board.current_player) {
+                if valid_session.players.check_color(uuid_user_id, board.current_player) {
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&start_hexagon).cloned() {
                         // match piece type to valid moves
@@ -146,20 +150,22 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             drop(session);
         }
         IncomingMessage::JoinGame { user_id, game_id } => {
-            let user_id = Uuid::parse_str(&user_id).unwrap();
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
             let session_id = Uuid::parse_str(&game_id).unwrap();
 
             let mut session: tokio::sync::RwLockWriteGuard<'_, session_handling::SessionHandler> = sessions.write().await;
 
-            let color = session.try_join_session(user_id, session_id, tx.clone());
+            let color = session.try_join_session(uuid_user_id, session_id, tx.clone());
 
-            if let Some(valid_session) = session.get_mut_session_if_exists(user_id) {
+            if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
                 send_join_success(color, session_id, tx, valid_session);
             }
 
             drop(session);
         }
     }
+    user_ids_on_websocket.insert(uuid_user_id);
+
 }
 
 fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::UnboundedSender<warp::ws::Message>, session: &mut session_handling::Game) {

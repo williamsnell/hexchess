@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{HashMap, VecDeque};
 use warp::ws::Message;
 use hexchesscore::{Board, Color};
 use uuid::Uuid;
@@ -88,7 +88,7 @@ impl Game {
 pub struct SessionHandler {
     pub sessions: HashMap<SessionID, Game>,
     pub players: HashMap<PlayerID, SessionID>,
-    pub joinable_sessions: Vec<SessionID>
+    pub joinable_sessions: VecDeque<SessionID>
 }
 
 impl SessionHandler {
@@ -96,7 +96,7 @@ impl SessionHandler {
         SessionHandler {
             sessions: HashMap::<SessionID, Game>::new(),
             players: HashMap::<PlayerID, SessionID>::new(),
-            joinable_sessions: Vec::<SessionID>::new()
+            joinable_sessions: VecDeque::<SessionID>::new()
         }
     }
 
@@ -116,7 +116,7 @@ impl SessionHandler {
         }
     }
 
-    pub fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
+    pub fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool, joinable: bool, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
         let (session_id, mut new_session, player_color) = Game::new(user_id, &transmitter);
         // if multiplayer, just add the one player for the moment,
         // which is performed in the session::new() setup.
@@ -125,20 +125,34 @@ impl SessionHandler {
         if !is_multiplayer {
             player_color = None;
             new_session.players.try_add_player(user_id);
-        } else {
-            // add to the list of joinable sessions
-
-            // can send some error messages if this doesn't work
-            self.joinable_sessions.push(session_id);
+        }
+        if joinable {
+            self.joinable_sessions.push_back(session_id);
         }
         // store the session so we can find it later
         self.sessions.insert(session_id, new_session);
 
         // add the player to players so we can find their game easily in the future
-        self.players.insert(user_id, session_id);
+        self.add_player_to_game(user_id, session_id);
 
         (session_id, self.get_mut_session_if_exists(user_id)
             .expect("Failure creating session"), player_color)
+    }
+
+    fn add_player_to_game(&mut self, user_id: Uuid, session_id: Uuid) {
+        // Add a player to a game. If they have other active games,
+        // delete them.
+        match self.players.insert(user_id, session_id) {
+            Some(session_id) => self.delete_session(session_id),
+            None => ()
+        }
+    }
+
+    pub fn delete_session(&mut self, session_id: SessionID) {
+        // delete the session
+        self.sessions.remove(&session_id);
+        // also, delete the session if it is in the joinable sessions vec
+        self.joinable_sessions.retain(|val| val != &session_id);
     }
 
     pub fn try_join_session(&mut self, user_id: PlayerID, session_id: SessionID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> Option<Color> {
@@ -148,9 +162,9 @@ impl SessionHandler {
         if let Some(valid_game) = game {
             let players = &mut valid_game.players;
             if let Some(player_color) = players.try_add_player(user_id) {
-                self.players.insert(user_id, session_id);
                 valid_game.channels.push(transmitter.clone());
-                // delete the session
+                self.add_player_to_game(user_id, session_id);
+                // delete the session from the list of joinable sessions
                 self.joinable_sessions.retain(|val| val != &session_id);
 
                 return Some(player_color)
@@ -164,15 +178,28 @@ impl SessionHandler {
 
         // we pop this game off the list so that if it isn't joinable,
         // it doesn't stay in the list of joinables
-        if let Some(game) = self.joinable_sessions.pop() {
-            println!("{:?}", game);
-            let color = self.try_join_session(user_id, game, transmitter.clone());
-            match color {
-                Some(color) => return (game, self.get_mut_session_if_exists(user_id).expect("couldn't get newly created game"), Some(color)),
-                None => ()
-            }
-        } 
+        while self.joinable_sessions.len() > 0 {
+            // try join a game
+            if let Some(game) = self.joinable_sessions.pop_front() {
+                let color = self.try_join_session(user_id, game, transmitter.clone());
+                match color {
+                    Some(color) => return (game, self.get_mut_session_if_exists(user_id).expect("couldn't get newly created game"), Some(color)),
+                    None => ()
+                }
+            } 
+            // delete it from the queue if you can't join
+        }
         // can't find any games for some reason; time to make one
-        self.add_session(user_id, true, transmitter.clone())
+        let (session_id, game, color) = self.add_session(user_id, true, true, transmitter.clone());
+
+        (session_id, game, color)
+    }
+
+    pub fn delete_player(&mut self, user_id: PlayerID) {
+        let game = self.players.remove(&user_id);
+        match game {
+            Some(session_id) => {self.delete_session(session_id);},
+            None => ()
+        };
     }
 }
