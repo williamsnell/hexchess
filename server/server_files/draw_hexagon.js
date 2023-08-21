@@ -118,7 +118,10 @@ function handle_incoming_message(message) {
     draw_pieces_from_board_state(payload.board);
   } else if (payload.op == "JoinGameSuccess") {
     console.log(payload);
-    document.getElementById("session_displayer").textContent = window.location.protocol + "//" + window.location.hostname + "/join?" + payload.session;
+    let session_id = window.location.protocol + "//" + window.location.hostname + "/join?" + payload.session;
+    document.getElementById("session_displayer").textContent = session_id;
+    // make sure the link is clickable
+    document.getElementById("session_displayer").addEventListener("click", () =>  navigator.clipboard.writeText(session_id));
     player_color = payload.color != null ? payload.color : Color.White;
   }
 }
@@ -368,19 +371,18 @@ function join_game(session_id) {
   }
 }
 
-document.getElementById("join_session_button").onclick = () => join_game(document.getElementById("session_id").value);
 
-// also try join the game if the user was sent a "join" link
 canvas.addEventListener("click", handle_click);
+
 
 let default_draw = () => {
   let size = Math.min(window.innerWidth, window.innerHeight * 0.7);
   ctx.canvas.width = size;
   ctx.canvas.height = size * 1.1;
   hex_size = canvas.width * 0.058;
-
+  
   hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
-
+  
   draw_board();
   if (board != null) {
     draw_pieces_from_board_state(board);
@@ -390,6 +392,7 @@ let default_draw = () => {
 window.addEventListener("resize", default_draw);
 window.addEventListener("load", default_draw);
 
+// try join the game if the user was sent a "join" link
 async function try_join_from_url() {
   await new Promise(r => setTimeout(r, 500));
   let path = window.location.href.split("/");
