@@ -371,12 +371,6 @@ function join_game(session_id) {
 document.getElementById("join_session_button").onclick = () => join_game(document.getElementById("session_id").value);
 
 // also try join the game if the user was sent a "join" link
-let path = window.location.href.split("/");
-console.log(path);
-if (path[3].indexOf("?") != -1) {
-  join_game(path[3].split("?")[1])
-}
-
 canvas.addEventListener("click", handle_click);
 
 let default_draw = () => {
@@ -395,3 +389,15 @@ let default_draw = () => {
 
 window.addEventListener("resize", default_draw);
 window.addEventListener("load", default_draw);
+
+async function try_join_from_url() {
+  await new Promise(r => setTimeout(r, 500));
+  let path = window.location.href.split("/");
+  console.log(path);
+  if (path[3].indexOf("?") != -1) {
+    join_game(path[3].split("?")[1]);
+  }
+
+}
+
+await try_join_from_url();
