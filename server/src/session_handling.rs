@@ -72,7 +72,7 @@ pub type PlayerID = Uuid;
 pub struct Game {
     pub board: Board,
     pub players: PlayersPerGame,
-    pub channels: Vec<tokio::sync::mpsc::UnboundedSender<Message>>
+    pub channels: HashMap<PlayerID, tokio::sync::mpsc::UnboundedSender<Message>>
 }
 
 impl Game {
@@ -80,7 +80,9 @@ impl Game {
         let board = Board::setup_default_board();
         let (color, players) = PlayersPerGame::new(user_id);
         let session_id = Uuid::new_v4();
-        (session_id, Game {board: board, players: players, channels: vec![transmitter.clone()]}, color)
+        let mut channels = HashMap::new();
+        channels.insert(user_id, transmitter.clone());
+        (session_id, Game {board: board, players: players, channels: channels}, color)
     }
 }
 
@@ -162,7 +164,7 @@ impl SessionHandler {
         if let Some(valid_game) = game {
             let players = &mut valid_game.players;
             if let Some(player_color) = players.try_add_player(user_id) {
-                valid_game.channels.push(transmitter.clone());
+                valid_game.channels.insert(user_id, transmitter.clone());
                 self.add_player_to_game(user_id, session_id);
                 // delete the session from the list of joinable sessions
                 self.joinable_sessions.retain(|val| val != &session_id);

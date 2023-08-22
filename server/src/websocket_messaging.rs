@@ -1,5 +1,5 @@
-use hexchesscore::{Board, Color, Hexagon, register_move, get_valid_moves};
-use serde::{Serialize, Deserialize};
+use hexchesscore::{check_for_mates, get_valid_moves, register_move, Board, Color, Hexagon, Mate};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use tokio::sync::{mpsc, RwLock};
@@ -12,8 +12,22 @@ use warp::ws::Message;
 
 use crate::session_handling;
 
+#[derive(Serialize, Deserialize, Debug)]
 
-#[derive(Serialize, Deserialize)]
+pub enum GameOutcome {
+    Won,
+    Drew,
+    Lost,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum GameEndReason {
+    Checkmate,
+    Stalemate,
+    Resignation,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "op")]
 pub enum IncomingMessage {
     GetBoard {
@@ -34,45 +48,68 @@ pub enum IncomingMessage {
     },
     JoinGame {
         user_id: String,
-        game_id: String
+        game_id: String,
     },
     JoinAnyGame {
         user_id: String,
-    }
+    },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(tag = "op")]
 pub enum OutgoingMessage<'a> {
-    ValidMoves { moves: &'a Vec<Hexagon> },
-    BoardState { board: &'a Board },
-    JoinGameSuccess { color: Option<Color>, session: String},
-    OpponentJoined { session: String},
-    JoinGameFailure
+    ValidMoves {
+        moves: &'a Vec<Hexagon>,
+    },
+    BoardState {
+        board: &'a Board,
+    },
+    JoinGameSuccess {
+        color: Option<Color>,
+        session: String,
+    },
+    OpponentJoined {
+        session: String,
+    },
+    JoinGameFailure,
+    GameEnded {
+        game_outcome: GameOutcome,
+        reason: GameEndReason,
+    },
 }
 
-pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<session_handling::SessionHandler>>, tx: &mpsc::UnboundedSender<Message>, user_ids_on_websocket: &mut HashSet<Uuid>) {
+pub async fn handle_incoming_ws_message(
+    message: Message,
+    sessions: &Arc<RwLock<session_handling::SessionHandler>>,
+    tx: &mpsc::UnboundedSender<Message>,
+    user_ids_on_websocket: &mut HashSet<Uuid>,
+) {
     let decoded: IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
 
     let uuid_user_id;
 
     match decoded {
-        IncomingMessage::CreateGame { user_id, is_multiplayer } => {
+        IncomingMessage::CreateGame {
+            user_id,
+            is_multiplayer,
+        } => {
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
             let mut session = sessions.write().await;
 
-            let (session_id, session, color) = session.add_session(uuid_user_id, is_multiplayer, false, tx.clone()); 
-    
-            send_join_success(color, session_id, tx, session);                        
+            let (session_id, session, color) =
+                session.add_session(uuid_user_id, is_multiplayer, false, tx.clone());
+
+            send_join_success(color, session_id, tx, session);
         }
         IncomingMessage::JoinAnyGame { user_id } => {
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
             let mut session = sessions.write().await;
 
-            let (session_id, session, color) = session.try_join_any_sessions(uuid_user_id, tx.clone()); 
+            let (session_id, session, color) =
+                session.try_join_any_sessions(uuid_user_id, tx.clone());
 
-            send_join_success(color, session_id, tx, session);                       
+            send_join_success(color, session_id, tx, session);
         }
         IncomingMessage::GetBoard { user_id } => {
             // Get the state of the board associated with the user's ID
@@ -120,14 +157,17 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
             let mut session = sessions.write().await;
-    
+
             // check if it is the player's turn to make a move
             let test = session.get_mut_session_if_exists(uuid_user_id);
-    
-            if let Some(valid_session) =  test {
+
+            if let Some(valid_session) = test {
                 let board = &mut valid_session.board;
                 // check this player really has the right to play the next move
-                if valid_session.players.check_color(uuid_user_id, board.current_player) {
+                if valid_session
+                    .players
+                    .check_color(uuid_user_id, board.current_player)
+                {
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&start_hexagon).cloned() {
                         // match piece type to valid moves
@@ -137,15 +177,41 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
                             let _ =
                                 register_move(&start_hexagon, &final_hexagon, board, double_jump);
 
-                            // TODO broadcast an update to both the players
-                            for transmitter in &valid_session.channels {
-                                send_board(valid_session, transmitter);
+                            if let Some(mate) = check_for_mates(board) {
+                                // the player registering the move has just won
+
+                                // send a win message to the player
+                                send_game_end(
+                                    Some(mate),
+                                    true,
+                                    valid_session.channels.get(&uuid_user_id).expect(
+                                        "No channels
+                                to communicate with the player who sent this move in!",
+                                    ),
+                                );
+
+                                // send a lose message to the opponent
+                                let loser_channel =
+                                    valid_session.channels.iter().find_map(|(player, channel)| {
+                                        if player != &uuid_user_id {
+                                            Some(channel)
+                                        } else {
+                                            None
+                                        }
+                                    });
+
+                                if loser_channel.is_some() {
+                                    send_game_end(Some(mate), false, loser_channel.unwrap());
+                                }
                             }
 
+                            // TODO broadcast an update to both the players
+                            for (_, transmitter) in &valid_session.channels {
+                                send_board(valid_session, transmitter);
+                            }
                         }
                     }
                 }
-
             }
             drop(session);
         }
@@ -153,7 +219,8 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
             let session_id = Uuid::parse_str(&game_id).unwrap();
 
-            let mut session: tokio::sync::RwLockWriteGuard<'_, session_handling::SessionHandler> = sessions.write().await;
+            let mut session: tokio::sync::RwLockWriteGuard<'_, session_handling::SessionHandler> =
+                sessions.write().await;
 
             let color = session.try_join_session(uuid_user_id, session_id, tx.clone());
 
@@ -165,14 +232,21 @@ pub async fn handle_incoming_ws_message(message: Message, sessions: &Arc<RwLock<
         }
     }
     user_ids_on_websocket.insert(uuid_user_id);
-
 }
 
-fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::UnboundedSender<warp::ws::Message>, session: &mut session_handling::Game) {
-    let message = OutgoingMessage::JoinGameSuccess { color: color, session: session_id.to_string() };
+fn send_join_success(
+    color: Option<Color>,
+    session_id: Uuid,
+    tx: &mpsc::UnboundedSender<warp::ws::Message>,
+    session: &mut session_handling::Game,
+) {
+    let message = OutgoingMessage::JoinGameSuccess {
+        color: color,
+        session: session_id.to_string(),
+    };
     if let Ok(success_message) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(success_message)).unwrap();
-    
+
         // send back the new board state
         send_board(&session, tx);
     } else {
@@ -180,12 +254,36 @@ fn send_join_success(color: Option<Color>, session_id: Uuid, tx: &mpsc::Unbounde
     }
 }
 
-fn send_board(valid_session: &session_handling::Game, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
+fn send_board(
+    valid_session: &session_handling::Game,
+    tx: &mpsc::UnboundedSender<warp::ws::Message>,
+) {
     let board = &valid_session.board;
     let message = OutgoingMessage::BoardState { board: board };
     if let Ok(new_board_state) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(new_board_state)).unwrap();
     } else {
         eprintln!("Failed to send board state");
+    }
+}
+
+fn send_game_end(mate: Option<Mate>, winner: bool, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
+    let (reason, outcome) = match (mate, winner) {
+        (Some(Mate::Checkmate), true) => (GameEndReason::Checkmate, GameOutcome::Won),
+        (Some(Mate::Stalemate), _) => (GameEndReason::Stalemate, GameOutcome::Drew),
+        (Some(Mate::Checkmate), false) => (GameEndReason::Checkmate, GameOutcome::Lost),
+        (None, true) => (GameEndReason::Resignation, GameOutcome::Won),
+        (None, false) => (GameEndReason::Resignation, GameOutcome::Lost),
+    };
+
+    let message = OutgoingMessage::GameEnded {
+        game_outcome: outcome,
+        reason: reason,
+    };
+    if let Ok(outcome_message) = serde_json::to_string(&message) {
+        tx.send(warp::ws::Message::text(outcome_message)).unwrap();
+    } else {
+        // do something at this point to make sure all the clients recieved their outcome message
+        eprintln!("Failed to send outcome message");
     }
 }

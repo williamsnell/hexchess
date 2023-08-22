@@ -363,6 +363,49 @@ pub fn get_valid_moves(
     (valid_moves, double_jump)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Mate {
+    Checkmate,
+    Stalemate
+}
+
+pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
+    let current_player_color = board.current_player;
+
+    // Get all pieces of the current player
+    let player_pieces = get_all_pieces_of_matching_color(current_player_color, board);
+
+    // Check if any of the player's pieces have a valid move
+    for (start_hexagon, piece) in player_pieces {
+        let (valid_moves, _) = get_valid_moves(&start_hexagon, &piece, board);
+
+        // If any valid move exists, the player is not in checkmate
+        if !valid_moves.is_empty() {
+            return None;
+        }
+    }
+
+    // The player's king is in check if there are attacking pieces
+    let king_hex = get_all_pieces_of_matching_color(current_player_color, board)
+        .into_iter()
+        .find(|(_, piece)| piece.piece_type == PieceType::King)
+        .map(|(hex, _)| hex);
+
+    if let Some(king_hex) = king_hex {
+        if let Some(attacking_pieces) = get_attacking_pieces(current_player_color.invert(), board, &king_hex) {
+            if attacking_pieces.is_empty() {
+                // There are no attacking pieces, indicating a stalemate
+                return Some(Mate::Stalemate);
+            } else {
+                // The king has no valid moves and is under attack, indicating a checkmate
+                return Some(Mate::Checkmate);
+            }
+        }
+    }
+
+    None
+}
+
 pub enum HexChessError {
     FailedToRegisterMove,
     NotYourTurn,

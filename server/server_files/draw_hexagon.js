@@ -128,7 +128,8 @@ function handle_incoming_message(message) {
     orientation = player_color == Color.White ? 1 : -1;
     // recompute the board positions since it may have flipped
     hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
-
+  } else if (payload.op == "GameEnded") {
+    window.alert(`You ${payload.game_outcome} by ${payload.reason}!`);
   }
 }
 
