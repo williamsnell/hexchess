@@ -26,7 +26,7 @@ impl Color {
     fn invert(&self) -> Color {
         match &self {
             Color::Black => Color::White,
-            Color::White => Color::Black,
+            Color::White => Color::Black
         }
     }
 }
@@ -253,7 +253,7 @@ pub fn get_attacking_pieces(
         pieces_can_attack_king(enemy_piece_hex, king_pos, enemy_piece, board)
     });
 
-    if potential_pieces.len() > 0 {
+    if !potential_pieces.is_empty() {
         Some(potential_pieces)
     } else {
         None

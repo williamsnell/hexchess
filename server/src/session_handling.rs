@@ -2,6 +2,14 @@ use std::collections::{HashMap, VecDeque};
 use warp::ws::Message;
 use hexchesscore::{Board, Color};
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub enum PlayerColor {
+    Black,
+    White,
+    Both
+}
 
 #[derive(Debug)]
 pub struct PlayersPerGame {
@@ -10,22 +18,22 @@ pub struct PlayersPerGame {
 }
 
 impl PlayersPerGame {
-    pub fn new(first_player: PlayerID) -> (Color, PlayersPerGame) {
+    pub fn new(first_player: PlayerID) -> (PlayerColor, PlayersPerGame) {
         // pseudo-randomly pick whether the first player is
         // black or white
         match first_player.as_fields().0 % 2 {
-            0 => (Color::Black, PlayersPerGame {
+            0 => (PlayerColor::Black, PlayersPerGame {
                 black: Some(first_player),
                 white: None,
             }),
-            1 => (Color::White, PlayersPerGame {
+            1 => (PlayerColor::White, PlayersPerGame {
                 black: None,
                 white: Some(first_player),
             }),
             _ => panic!("shouldn't be able to get here!")
         }
     }
-    pub fn try_add_player(&mut self, second_player: PlayerID) -> Option<Color> {
+    pub fn try_add_player(&mut self, second_player: PlayerID) -> Option<PlayerColor> {
         // this function tries to add a player, but 
         // if the second slot is already occupied,
         // it silently fails.
@@ -36,20 +44,22 @@ impl PlayersPerGame {
             Some(_) => {
                 if self.white == None {
                     self.white = Some(second_player);
-                    players_color = Some(Color::White);
+                    players_color = Some(PlayerColor::White);
                 } else {
                     players_color = None;
                 }
             }
             None => {
                 self.black = Some(second_player);
-                players_color = Some(Color::Black);
+                players_color = Some(PlayerColor::Black);
                     },
         }
         players_color
     }
 
     pub fn check_color(&self, player: PlayerID, color: Color) -> bool {
+        // Look at whether it is a player's turn, given the player's ID
+        // and the color that is currently allowed to move
         if color == Color::Black {
             self.black == Some(player)
         } else if color == Color::White {
@@ -58,6 +68,20 @@ impl PlayersPerGame {
             false
         }
 
+    }
+
+    pub fn check_for_player(&self, player: PlayerID) -> Option<PlayerColor> {
+        if Some(player) == self.black {
+            if Some(player) == self.white {
+                Some(PlayerColor::Both)
+            } else {
+                Some(PlayerColor::Black)
+            }
+        } else if Some(player) == self.white {
+            Some(PlayerColor::White)
+        } else {
+            None
+        }
     }
 
 
@@ -76,7 +100,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(user_id: PlayerID, transmitter: &tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, Game, Color) {
+    pub fn new(user_id: PlayerID, transmitter: &tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, Game, PlayerColor) {
         let board = Board::setup_default_board();
         let (color, players) = PlayersPerGame::new(user_id);
         let session_id = Uuid::new_v4();
@@ -118,14 +142,13 @@ impl SessionHandler {
         }
     }
 
-    pub fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool, joinable: bool, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
-        let (session_id, mut new_session, player_color) = Game::new(user_id, &transmitter);
+    pub fn add_session(&mut self, user_id: Uuid, is_multiplayer: bool, joinable: bool, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, PlayerColor) {
+        let (session_id, mut new_session, mut player_color) = Game::new(user_id, &transmitter);
         // if multiplayer, just add the one player for the moment,
         // which is performed in the session::new() setup.
         // if single-player, both player slots are the same player
-        let mut player_color = Some(player_color);
         if !is_multiplayer {
-            player_color = None;
+            player_color = PlayerColor::Both;
             new_session.players.try_add_player(user_id);
         }
         if joinable {
@@ -157,7 +180,9 @@ impl SessionHandler {
         self.joinable_sessions.retain(|val| val != &session_id);
     }
 
-    pub fn try_join_session(&mut self, user_id: PlayerID, session_id: SessionID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> Option<Color> {
+    pub fn try_join_session(&mut self, user_id: PlayerID, session_id: SessionID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> Option<PlayerColor> {
+        // first, clean up any existing games the player might have
+        self.delete_player(user_id);
         // try and join a session. If the session is already full,
         // or it doesn't exist, silently fail.
         let game = self.sessions.get_mut(&session_id);
@@ -175,7 +200,23 @@ impl SessionHandler {
         None
     }
 
-    pub fn try_join_any_sessions(&mut self, user_id: PlayerID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, Option<Color>) {
+    pub fn reconnect_player(&mut self, user_id: PlayerID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> Option<(PlayerColor, &Board)> {
+        let game = self.get_mut_session_if_exists(user_id);
+        if let Some(valid_game) = game {
+            let color = valid_game.players.check_for_player(user_id);
+            if color.is_some() {
+                // overwrite the transmitter from the old websocket
+                valid_game.channels.insert(user_id, transmitter.clone());
+            }
+
+            Some((color.unwrap(), &valid_game.board))
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn try_join_any_sessions(&mut self, user_id: PlayerID, transmitter: tokio::sync::mpsc::UnboundedSender<Message>) -> (SessionID, &mut Game, PlayerColor) {
         // try join any of the joinable sessions
 
         // we pop this game off the list so that if it isn't joinable,
@@ -185,7 +226,7 @@ impl SessionHandler {
             if let Some(game) = self.joinable_sessions.pop_front() {
                 let color = self.try_join_session(user_id, game, transmitter.clone());
                 match color {
-                    Some(color) => return (game, self.get_mut_session_if_exists(user_id).expect("couldn't get newly created game"), Some(color)),
+                    Some(color) => return (game, self.get_mut_session_if_exists(user_id).expect("couldn't get newly created game"), color),
                     None => ()
                 }
             } 

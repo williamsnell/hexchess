@@ -25,7 +25,8 @@ async fn handle_websocket_async(
     let (tx, rx) = mpsc::unbounded_channel();
     // turn the normal receiver into a stream
     let mut rx = UnboundedReceiverStream::new(rx);
-
+    
+    let mut user_ids_on_websocket = HashSet::<Uuid>::new();
     // spawn a task that will do the sending for us
     tokio::task::spawn(async move {
         while let Some(message) = rx.next().await {
@@ -38,7 +39,6 @@ async fn handle_websocket_async(
         }
     });
 
-    let mut user_ids_on_websocket = HashSet::<Uuid>::new();
 
     // Listen for messages from the client, and do something with them
     while let Some(result) = ws_rx.next().await {
@@ -54,12 +54,12 @@ async fn handle_websocket_async(
         }
     }
 
-    // when the websocket closes, do some cleanup
-    // go through all the sessions that the player was subscribed to
-    let mut session = sessions.write().await;
-    for id in user_ids_on_websocket {
-        session.delete_player(id);
-    }
+    // // when the websocket closes, do some cleanup
+    // // go through all the sessions that the player was subscribed to
+    // let mut session = sessions.write().await;
+    // for id in user_ids_on_websocket {
+    //     session.delete_player(id);
+    // }
 
 
 }

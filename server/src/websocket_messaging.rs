@@ -10,7 +10,7 @@ use std::collections::HashSet;
 
 use warp::ws::Message;
 
-use crate::session_handling;
+use crate::session_handling::{self, PlayerColor};
 
 #[derive(Serialize, Deserialize, Debug)]
 
@@ -53,6 +53,9 @@ pub enum IncomingMessage {
     JoinAnyGame {
         user_id: String,
     },
+    TryReconnect {
+        user_id: String,
+    },
 }
 
 #[derive(Serialize, Debug)]
@@ -65,7 +68,7 @@ pub enum OutgoingMessage<'a> {
         board: &'a Board,
     },
     JoinGameSuccess {
-        color: Option<Color>,
+        color: PlayerColor,
         session: String,
     },
     OpponentJoined {
@@ -88,6 +91,8 @@ pub async fn handle_incoming_ws_message(
 
     let uuid_user_id;
 
+    dbg!(&sessions.read().await.joinable_sessions);
+
     match decoded {
         IncomingMessage::CreateGame {
             user_id,
@@ -100,7 +105,7 @@ pub async fn handle_incoming_ws_message(
             let (session_id, session, color) =
                 session.add_session(uuid_user_id, is_multiplayer, false, tx.clone());
 
-            send_join_success(color, session_id, tx, session);
+            send_join_success(color, session_id, tx, &session.board);
         }
         IncomingMessage::JoinAnyGame { user_id } => {
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
@@ -109,7 +114,7 @@ pub async fn handle_incoming_ws_message(
             let (session_id, session, color) =
                 session.try_join_any_sessions(uuid_user_id, tx.clone());
 
-            send_join_success(color, session_id, tx, session);
+            send_join_success(color, session_id, tx, &session.board);
         }
         IncomingMessage::GetBoard { user_id } => {
             // Get the state of the board associated with the user's ID
@@ -120,7 +125,7 @@ pub async fn handle_incoming_ws_message(
             let session = sessions.read().await;
 
             if let Some(valid_session) = session.get_session_if_exists(uuid_user_id) {
-                send_board(valid_session, tx);
+                send_board(&valid_session.board, tx);
             } else {
                 eprintln!("User doesn't have an existing game");
             }
@@ -207,7 +212,7 @@ pub async fn handle_incoming_ws_message(
 
                             // TODO broadcast an update to both the players
                             for (_, transmitter) in &valid_session.channels {
-                                send_board(valid_session, transmitter);
+                                send_board(&valid_session.board, transmitter);
                             }
                         }
                     }
@@ -224,21 +229,69 @@ pub async fn handle_incoming_ws_message(
 
             let color = session.try_join_session(uuid_user_id, session_id, tx.clone());
 
-            if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
-                send_join_success(color, session_id, tx, valid_session);
+            if let (Some(valid_session), Some(color)) =
+                (session.get_mut_session_if_exists(uuid_user_id), color)
+            {
+                send_join_success(color, session_id, tx, &valid_session.board);
             }
 
             drop(session);
         }
+        IncomingMessage::TryReconnect { user_id } => {
+            println!("trying to reconnect");
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
+            // see if the user_id already has some games
+            let session = sessions.read().await;
+            let session_id = session.players.get(&uuid_user_id).cloned();
+            drop(session);
+
+            if let Some(session_id) = session_id {
+                let mut session = sessions.write().await;
+    
+                // have to identify a different way of figuring out if the player doesn't exist
+                let res = session.reconnect_player(uuid_user_id, tx.clone());
+    
+                if let Some((color, board)) = res {
+                    println!("trying to send a success message");
+                    send_join_success(color, session_id, tx, board)
+                }
+            }
+
+            // if let Some(session_id) = session_id {
+            //     let game = session.sessions.get(session_id).unwrap().clone();
+            //     let res =  session.reconnect_player(uuid_user_id, *session_id, tx.clone());
+            //     if let Some((color, board)) = res {
+            //         send_join_success(color, *session_id, &tx.clone(), &board);
+            //     }
+
+            // }
+
+            // if they do, put their new transmitter into the channels of the game
+            // they're currently in
+
+            // send them a "JoinGameSuccess"
+        }
     }
-    user_ids_on_websocket.insert(uuid_user_id);
+
+    // check if the user_id has previously connected on a different websocket
+    // let mut session = sessions.write().await;
+
+    // if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
+    //     if let Some(session_id) = session.players.get(&uuid_user_id) {
+    //         // if so, send join game success
+    //         let color = session.reconnect_player(uuid_user_id, *session_id, tx.clone());
+    //         send_join_success(color, *session_id, &tx.clone(), valid_session);
+    //     }
+
+    // }
+    // user_ids_on_websocket.insert(uuid_user_id);
 }
 
 fn send_join_success(
-    color: Option<Color>,
+    color: PlayerColor,
     session_id: Uuid,
     tx: &mpsc::UnboundedSender<warp::ws::Message>,
-    session: &mut session_handling::Game,
+    board: &Board
 ) {
     let message = OutgoingMessage::JoinGameSuccess {
         color: color,
@@ -248,17 +301,16 @@ fn send_join_success(
         tx.send(warp::ws::Message::text(success_message)).unwrap();
 
         // send back the new board state
-        send_board(&session, tx);
+        send_board(&board, tx);
     } else {
         eprintln!("Failed to send back join confirmation");
     }
 }
 
 fn send_board(
-    valid_session: &session_handling::Game,
+    board: &Board,
     tx: &mpsc::UnboundedSender<warp::ws::Message>,
 ) {
-    let board = &valid_session.board;
     let message = OutgoingMessage::BoardState { board: board };
     if let Ok(new_board_state) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(new_board_state)).unwrap();

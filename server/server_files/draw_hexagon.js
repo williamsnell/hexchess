@@ -124,7 +124,8 @@ function handle_incoming_message(message) {
     document.getElementById("session_displayer").textContent = session_id;
     // make sure the link is clickable
     document.getElementById("session_displayer").addEventListener("click", () =>  navigator.clipboard.writeText(session_id));
-    player_color = payload.color != null ? payload.color : Color.White;
+    player_color = payload.color == "Both" ? Color.White : payload.color;
+    multiplayer_enabled = payload.color == "Both" ? false : true;
     orientation = player_color == Color.White ? 1 : -1;
     // recompute the board positions since it may have flipped
     hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
@@ -135,13 +136,29 @@ function handle_incoming_message(message) {
 
 var hex_labels = label_hexes(ctx, canvas, hex_size, draw_labels);
 
-var user_id = crypto.randomUUID();
+var user_id;
+// try get a stored user_id for a session. If there isn't one, make one
+if (sessionStorage.getItem("player_id") != null) {
+
+  user_id = sessionStorage.getItem("player_id");
+} else {
+  user_id = crypto.randomUUID();
+  sessionStorage.setItem("player_id", user_id);
+}
+
+console.log(user_id);
+
+function try_reconnect() {
+  socket.send(
+    `{"op": "TryReconnect",
+      "user_id": "${user_id}"}`);
+}
 
 function setup_websocket() {
   const BACKEND_URL = (window.location.protocol == "http:" ? "ws://" : "wss://") + window.location.hostname + ":" + window.location.port;
   const socket = new WebSocket(BACKEND_URL);
   socket.onmessage = (message) => handle_incoming_message(message);
-  socket.addEventListener("open", () => {console.log("Socket Open"); request_board_state();});
+  socket.addEventListener("open", () => {console.log("Socket Open"); try_reconnect(); request_board_state();});
   socket.onerror = (err) => console.error(err);
   socket.onclose = () => console.log("Socket Closed");
 
