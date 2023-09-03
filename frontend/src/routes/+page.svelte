@@ -1,10 +1,81 @@
 <script lang="ts">
 	import { get_piece_asset } from './assets.js';
-	import { board } from './board_state.js';
+	import { board, instantiate_pieces, show_available_moves, move_piece } from './board_state.js';
 	import { Color, PieceType } from './hexchess_logic.js';
-	import {draggable} from '@neodrag/svelte';
+	import { draggable } from '@neodrag/svelte';
+	import { browser } from '$app/environment';
+	import { get_hexagon_position } from './get_hexagon_position.js';
 
-	let size = 200;
+	$: valid_moves = [];
+	$: board_w = 0;
+	$: board_h = 0;
+
+	function handle_incoming_message(message: MessageEvent) {
+		const payload = JSON.parse(message.data);
+		if (payload.op == 'ValidMoves') {
+			valid_moves = payload.moves;
+		} else if (payload.op == 'BoardState') {
+			console.log(payload);
+			board.update(() => instantiate_pieces(payload.board));
+		} else if (payload.op == 'JoinGameSuccess') {
+			console.log(payload);
+			let session_id = payload.session;
+			// recompute the board positions since it may have flipped
+		} else if (payload.op == 'GameEnded') {
+			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
+		}
+	}
+
+
+	function try_reconnect(send: Function) {
+		send(
+			`{"op": "TryReconnect",
+		"user_id": "${user_id}"}`
+		);
+	}
+
+	function request_board_state(send: Function) {
+		send(
+			`{"op": "GetBoard",
+		"user_id": "${user_id}"}`
+		);
+	}
+
+	function setup_socket() {
+		// return a function that lets you send messages over the socket
+		if (browser) {
+			const BACKEND_URL = 'ws://127.0.0.1:7878';
+			const socket = new WebSocket(BACKEND_URL);
+			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => socket.send(message);
+			socket.onmessage = (message) => handle_incoming_message(message);
+			socket.addEventListener('open', () => {
+				console.log('Socket Open');
+				try_reconnect(sender);
+				request_board_state(sender);
+			});
+			socket.onerror = (err) => console.error(err);
+			socket.onclose = () => console.log('Socket Closed');
+			return sender;
+		} else {
+			return () => {};
+		}
+	}
+
+	const socket_send = setup_socket();
+
+	let user_id = '';
+
+	if (browser) {
+		// try get a stored user_id for a session. If there isn't one, make one
+		if (sessionStorage.getItem('player_id') != null) {
+			user_id = sessionStorage.getItem('player_id');
+		} else {
+			user_id = crypto.randomUUID();
+			sessionStorage.setItem('player_id', user_id);
+		}
+	}
+
+	let size = 0.24;
 
 	let piece_images: Array<string> = [];
 	for (const color in Color) {
@@ -13,7 +84,8 @@
 		}
 	}
 
-	let board_w, board_h;
+	let hover_hex;
+	let selected_piece;
 
 </script>
 
@@ -25,37 +97,71 @@
 
 <body>
 	<div class="website_id">playhexchess.com</div>
-	<div bind:clientWidth={board_w} bind:clientHeight={board_h}
+	<div
+		bind:clientWidth={board_w}
+		bind:clientHeight={board_h}
 		class="board"
 		style:position="relative"
-		style:display="block">
-		<img
-			src="/src/assets/board.svg"
-			alt="game board"
-		/>
+		style:display="block"
+	>
+		<img src="/src/assets/board.svg" alt="game board" />
 		{#each $board as { hex, position, img_src, alt }}
-		<div			
-			use:draggable={{position: {x: board_w * (position.x * 0.97 + 0.059), y: (position.y * 0.99 - 1.58) *  board_h}}}
-			on:neodrag={(e) => {
-				$socket.send(
-				`{"op": "GetMoves",
-					"user_id": "${user_id}",
-					"hexagon": "${hex_labels[`${x},${y}`]}"}`
-				);
+			<div
+				use:draggable={{
+					position: {
+						x: board_w * (position.x * 0.97 + 0.059),
+						y: (position.y * 0.99 - 1.58) * board_h
+					}
+				}}
+				on:neodrag:start={() => {if (selected_piece) {selected_piece = null; valid_moves = [];} else {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}}
+				on:neodrag:end={() => {if (hover_hex) {move_piece(hex, hover_hex, user_id, socket_send)}; board.update((board) => board)}}
+				style:position="absolute"
+			>
+				<input
+					type="image"
+					src={img_src}
+					style:left="0px"
+					style:top="0px"
+					style:transform="translate(-50%, -50%)"
+					style:width="{size * board_w}%"
+					{alt}
+				/>
+			</div>
+		{/each}
+		<!-- draw the valid moves -->
+		{#each valid_moves as move}
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<span 
+			class="dot"
+			use:draggable={{
+				position: {
+					x: board_w * (get_hexagon_position(move)[0] * 0.97 + 0.025),
+					y: (get_hexagon_position(move)[1] * 0.99 - 1.61) * board_h
+				},
+				disabled: true
 			}}
+			on:mouseenter={() => {hover_hex = move;}}
+			on:mouseleave={() => {hover_hex = null;}}
+			on:click={() => {move_piece(selected_piece, move, user_id, socket_send); valid_moves = [];}}
 			style:position="absolute"
-		>
-			<input
-				type="image"
-				src={img_src}
-				style:left="0px"
-				style:top="0px"
-				style:transform="translate(-50%, -50%)"
-				style:width="{size}%"
-				{alt}/>
-		</div>
+			style:transform="translate(-50%, -50%)"
+			style:width="{board_w * 0.07}px"
+			style:height="{board_w * 0.07}px"
+			>
+			</span>
 		{/each}
 	</div>
+	{#if browser}
+		<button
+			on:click={socket_send(
+				`{"op": "JoinAnyGame",
+					"user_id": "${user_id}"}`
+			)}
+		>
+			Join a Multiplayer Game
+		</button>
+	{/if}
 </body>
 
 <style>
@@ -86,5 +192,10 @@
 		position: relative;
 		margin-left: auto;
 		margin-right: auto;
+	}
+	.dot {
+		background-color: #bbb;
+		border-radius: 50%;
+		display: inline-block;
 	}
 </style>

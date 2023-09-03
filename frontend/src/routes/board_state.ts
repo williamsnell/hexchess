@@ -20,7 +20,7 @@ export function parse_hexagon_string(position: Hexagon) {
     return { rank, file };
 }
 
-function instantiate_pieces(board: Board) {
+export function instantiate_pieces(board: Board) {
     const active_pieces = [];
     for (const [hex, piece] of Object.entries(board.occupied_squares)) {
         const position = get_hexagon_position(hex);
@@ -30,5 +30,24 @@ function instantiate_pieces(board: Board) {
     return active_pieces;
 }
 
-export const board = writable(instantiate_pieces(board_json.board), () => { return () => { } });
+export const board = writable(instantiate_pieces(board_json.board));
 
+export function show_available_moves(hexagon, user_id, socket_send) {
+    // send a message to the websocket to get the 
+    // valid moves.
+    socket_send(
+        `{"op": "GetMoves",
+          "user_id": "${user_id}",
+          "hexagon": "${hexagon}"}`
+      );
+    }
+
+export function move_piece(start_hex, destination_hex, user_id, socket_send) {
+        // send a message to register a piece moving
+        socket_send(
+          `{"op": "RegisterMove",
+              "user_id": "${user_id}",
+              "start_hexagon": "${start_hex}",
+              "final_hexagon": "${destination_hex}"}`
+        );
+      }
