@@ -13,14 +13,11 @@
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
-			console.log(payload);
 			valid_moves = payload.moves;
 		} else if (payload.op == 'BoardState') {
-			console.log(payload);
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
-			console.log(payload);
 			let session_id = payload.session;
 			// recompute the board positions since it may have flipped
 		} else if (payload.op == 'GameEnded') {
