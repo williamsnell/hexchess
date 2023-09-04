@@ -13,10 +13,12 @@
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
+			console.log(payload);
 			valid_moves = payload.moves;
 		} else if (payload.op == 'BoardState') {
 			console.log(payload);
 			board.update(() => instantiate_pieces(payload.board));
+			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
 			console.log(payload);
 			let session_id = payload.session;
@@ -75,7 +77,7 @@
 		}
 	}
 
-	let size = 0.24;
+	let size = 0.22;
 
 	let piece_images: Array<string> = [];
 	for (const color in Color) {
@@ -109,11 +111,11 @@
 			<div
 				use:draggable={{
 					position: {
-						x: board_w * (position.x * 0.97 + 0.059),
-						y: (position.y * 0.99 - 1.58) * board_h
+						x: board_w * (position.x * 0.97 + 0.059 - size * 0.23),
+						y: (position.y * 0.99 - 1.59 - size * 0.17) * board_h
 					}
 				}}
-				on:neodrag:start={() => {if (selected_piece) {selected_piece = null; valid_moves = [];} else {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}}
+				on:neodrag:start={() => {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}
 				on:neodrag:end={() => {if (hover_hex) {move_piece(hex, hover_hex, user_id, socket_send)}; board.update((board) => board)}}
 				style:position="absolute"
 			>
@@ -122,7 +124,6 @@
 					src={img_src}
 					style:left="0px"
 					style:top="0px"
-					style:transform="translate(-50%, -50%)"
 					style:width="{size * board_w}%"
 					{alt}
 				/>
@@ -132,23 +133,29 @@
 		{#each valid_moves as move}
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<!-- svelte-ignore a11y-mouse-events-have-key-events -->
 			<span 
-			class="dot"
-			use:draggable={{
-				position: {
-					x: board_w * (get_hexagon_position(move)[0] * 0.97 + 0.025),
-					y: (get_hexagon_position(move)[1] * 0.99 - 1.61) * board_h
-				},
-				disabled: true
-			}}
-			on:mouseenter={() => {hover_hex = move;}}
-			on:mouseleave={() => {hover_hex = null;}}
-			on:click={() => {move_piece(selected_piece, move, user_id, socket_send); valid_moves = [];}}
-			style:position="absolute"
-			style:transform="translate(-50%, -50%)"
-			style:width="{board_w * 0.07}px"
-			style:height="{board_w * 0.07}px"
+				use:draggable={{
+					position: {
+						x: board_w * (get_hexagon_position(move)[0] * 0.97 + 0.009),
+						y: (get_hexagon_position(move)[1] * 0.99 - 1.628) * board_h
+					},
+					disabled: true
+				}}
+				on:mouseenter={() => {hover_hex = move}}
+				on:mouseleave={() => {hover_hex = null}}
+				on:click={() => {move_piece(selected_piece, move, user_id, socket_send); hover_hex = null; valid_moves = [];}}
+				style:position="absolute"
+				style:width="{board_w * 0.1}px"
+				style:height="{board_w * 0.1}px"
 			>
+				<span 
+				class="dot" 
+				style:position="relative"
+				style:left="{board_w * 0.035}px"
+				style:top="{board_w * 0.035}px"
+				style:width="{board_w * 0.03}px"
+				style:height="{board_w * 0.03}px"/>
 			</span>
 		{/each}
 	</div>
@@ -160,6 +167,15 @@
 			)}
 		>
 			Join a Multiplayer Game
+		</button>
+		<button
+			on:click={socket_send(
+				`{"op": "CreateGame",
+				"user_id": "${user_id}",
+				"is_multiplayer": false}`
+			)}
+		>
+			Start a Singleplayer Game
 		</button>
 	{/if}
 </body>
@@ -194,7 +210,7 @@
 		margin-right: auto;
 	}
 	.dot {
-		background-color: #bbb;
+		background-color: #a5a195;
 		border-radius: 50%;
 		display: inline-block;
 	}
