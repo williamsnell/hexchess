@@ -103,7 +103,7 @@
 		style:position="relative"
 		style:display="block"
 	>
-		<img src="/src/assets/board.svg" alt="game board" />
+		<img src="/src/lib/assets/board.svg" alt="game board" />
 		{#each $board as { hex, position, img_src, alt }}
 			<div
 				use:draggable={{
