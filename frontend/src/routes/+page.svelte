@@ -139,8 +139,8 @@
 					},
 					disabled: true
 				}}
-				on:mouseenter={() => {hover_hex = move}}
-				on:mouseleave={() => {hover_hex = null}}
+				on:pointerenter={() => {hover_hex = move}}
+				on:pointerleave={() => {hover_hex = null}}
 				on:click={() => {move_piece(selected_piece, move, user_id, socket_send); hover_hex = null; valid_moves = [];}}
 				style:position="absolute"
 				style:width="{board_w * 0.1}px"
