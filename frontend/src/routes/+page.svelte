@@ -94,18 +94,18 @@
 	{/each}
 </svelte:head>
 
+<title>Hexagonal Chessagonal</title>
 <body>
 	<div class="website_id">playhexchess.com</div>
 	<div
-		bind:clientWidth={board_w}
-		bind:clientHeight={board_h}
+		bind:offsetWidth={board_w}
+		bind:offsetHeight={board_h}
 		class="board"
-		style:position="relative"
-		style:display="block"
 	>
 		<img src="/assets/board.svg" alt="game board" />
 		{#each $board as { hex, position, img_src, alt }}
 			<div
+				class="piece"
 				use:draggable={{
 					position: {
 						x: board_w * (position.x * 0.97 + 0.059 - size * 0.23),
@@ -114,6 +114,7 @@
 				}}
 				on:neodrag:start={() => {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}
 				on:neodrag:end={() => {if (hover_hex) {move_piece(hex, hover_hex, user_id, socket_send)}; board.update((board) => board)}}
+				on:neodrag={(e) => {console.log(e)}}
 				style:position="absolute"
 			>
 				<input
@@ -132,6 +133,7 @@
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
 			<!-- svelte-ignore a11y-mouse-events-have-key-events -->
 			<span 
+				style:touch-action="none"
 				use:draggable={{
 					position: {
 						x: board_w * (get_hexagon_position(move)[0] * 0.97 + 0.009),
@@ -141,11 +143,14 @@
 				}}
 				on:pointerenter={() => {hover_hex = move}}
 				on:pointerleave={() => {hover_hex = null}}
+				
 				on:click={() => {move_piece(selected_piece, move, user_id, socket_send); hover_hex = null; valid_moves = [];}}
 				style:position="absolute"
+				style:display="block"
 				style:width="{board_w * 0.1}px"
 				style:height="{board_w * 0.1}px"
 			>
+
 				<span 
 				class="dot" 
 				style:position="relative"
@@ -202,7 +207,6 @@
 		max-width: 70vh;
 		height: auto;
 		width: auto;
-		position: relative;
 		margin-left: auto;
 		margin-right: auto;
 	}
@@ -210,5 +214,9 @@
 		background-color: #a5a195;
 		border-radius: 50%;
 		display: inline-block;
+		touch-action: none;
+	}
+	.piece {
+		touch-action: none;
 	}
 </style>
