@@ -164,7 +164,7 @@
 	</div>
 	{#if browser}
 		<button
-			on:click={socket_send(
+			on:pointerdown={socket_send(
 				`{"op": "JoinAnyGame",
 					"user_id": "${user_id}"}`
 			)}
@@ -172,7 +172,7 @@
 			Join a Multiplayer Game
 		</button>
 		<button
-			on:click={socket_send(
+			on:pointerdown={socket_send(
 				`{"op": "CreateGame",
 				"user_id": "${user_id}",
 				"is_multiplayer": false}`
