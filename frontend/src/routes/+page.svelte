@@ -43,7 +43,7 @@
 	function setup_socket() {
 		// return a function that lets you send messages over the socket
 		if (browser) {
-			const BACKEND_URL = 'ws://127.0.0.1:7878';
+			const BACKEND_URL = (window.location.protocol == "http:" ? "ws://127.0.0.1:7878" : "wss://playhexchess.com:443");
 			const socket = new WebSocket(BACKEND_URL);
 			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => socket.send(message);
 			socket.onmessage = (message) => handle_incoming_message(message);
@@ -164,7 +164,7 @@
 	</div>
 	{#if browser}
 		<button
-			on:pointerdown={socket_send(
+			on:click={socket_send(
 				`{"op": "JoinAnyGame",
 					"user_id": "${user_id}"}`
 			)}
@@ -172,7 +172,7 @@
 			Join a Multiplayer Game
 		</button>
 		<button
-			on:pointerdown={socket_send(
+			on:click={socket_send(
 				`{"op": "CreateGame",
 				"user_id": "${user_id}",
 				"is_multiplayer": false}`
