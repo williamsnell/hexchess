@@ -112,6 +112,7 @@
 						y: (position.y * 0.99 - 1.59 - size * 0.17) * board_h
 					}
 				}}
+				on:pointerdown={(e) => {e.target.releasePointerCapture(e.pointerId)}}
 				on:neodrag:start={() => {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}
 				on:neodrag:end={() => {if (hover_hex) {move_piece(hex, hover_hex, user_id, socket_send)}; board.update((board) => board)}}
 				on:neodrag={(e) => {console.log(e)}}
