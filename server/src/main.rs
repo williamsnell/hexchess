@@ -78,7 +78,7 @@ async fn main() {
     let sessions = warp::any().map(move || sessions.clone());
 
     let websocket =
-        warp::path::end()
+        warp::path("ws")
             .and(warp::ws())
             .and(sessions)
             .map(|ws: warp::ws::Ws, sessions| {
