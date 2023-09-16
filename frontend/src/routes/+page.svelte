@@ -26,7 +26,6 @@
 		}
 	}
 
-
 	function try_reconnect(send: Function) {
 		send(
 			`{"op": "TryReconnect",
@@ -44,9 +43,13 @@
 	function setup_socket() {
 		// return a function that lets you send messages over the socket
 		if (browser) {
-			const BACKEND_URL = (window.location.protocol == "http:" ? "ws://127.0.0.1:7878/ws" : "wss://playhexchess.com:443/ws");
+			const BACKEND_URL =
+				window.location.protocol == 'http:'
+					? 'ws://127.0.0.1:7878/ws'
+					: 'wss://playhexchess.com:443/ws';
 			const socket = new WebSocket(BACKEND_URL);
-			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => socket.send(message);
+			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) =>
+				socket.send(message);
 			socket.onmessage = (message) => handle_incoming_message(message);
 			socket.addEventListener('open', () => {
 				console.log('Socket Open');
@@ -86,7 +89,6 @@
 
 	let hover_hex;
 	let selected_piece;
-
 </script>
 
 <svelte:head>
@@ -98,46 +100,43 @@
 <title>Hexagonal Chessagonal</title>
 <body>
 	<div class="website_id">playhexchess.com</div>
-	<div id="menu" 
+	<div
+		id="menu"
 		style:text-align="center"
-		style:height={session_id == 0 ? "4rem" : "2.2rem"}
-		style:width={session_id == 0 ? "100%" : "20.4rem"}
-		class="top-menu">
+		style:height={session_id == 0 ? '4rem' : '2.2rem'}
+		style:width={session_id == 0 ? '100%' : '16.4rem'}
+		class="top-menu"
+	>
 		{#if browser}
 			<button
 				class="button"
-				style:height={session_id == 0 ? "4rem" : "2rem"}
+				style:height={session_id == 0 ? '4rem' : '2rem'}
 				on:click={socket_send(
 					`{"op": "JoinAnyGame",
 						"user_id": "${user_id}"}`
 				)}
-				style:width={session_id == 0 ? "49%" : "10rem"}
-				style:font-size={session_id == 0 ? "1.5rem" : "1rem"}
+				style:width={session_id == 0 ? '49%' : '8rem'}
+				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
 				Multiplayer
 			</button>
 			<button
 				class="button"
-				style:height={session_id == 0 ? "4rem" : "2rem"}
+				style:height={session_id == 0 ? '4rem' : '2rem'}
 				on:click={socket_send(
 					`{"op": "CreateGame",
 					"user_id": "${user_id}",
 					"is_multiplayer": false}`
 				)}
-				style:width={session_id == 0 ? "49%" : "10rem"}
-				style:font-size={session_id == 0 ? "1.5rem" : "1rem"}
+				style:width={session_id == 0 ? '49%' : '8rem'}
+				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
-			Singleplayer
-
+				Singleplayer
 			</button>
 		{/if}
 	</div>
-	<div
-		bind:offsetWidth={board_w}
-		bind:offsetHeight={board_h}
-		class="board"
-	>
-		<img src="/assets/board.svg" alt="game board"/>
+	<div bind:offsetWidth={board_w} bind:offsetHeight={board_h} class="board">
+		<img src="/assets/board.svg" alt="game board" />
 		{#each $board as { hex, position, img_src, alt }}
 			<div
 				class="piece"
@@ -147,10 +146,24 @@
 						y: (position.y * 0.99 - 1.59 - size * 0.17) * board_h
 					}
 				}}
-				on:pointerdown={(e) => {e.target.releasePointerCapture(e.pointerId)}}
-				on:neodrag:start={() => {{selected_piece = hex; show_available_moves(hex, user_id, socket_send)}}}
-				on:neodrag:end={() => {if (hover_hex) {move_piece(hex, hover_hex, user_id, socket_send)}; board.update((board) => board)}}
-				on:neodrag={(e) => {console.log(e)}}
+				on:pointerdown={(e) => {
+					e.target.releasePointerCapture(e.pointerId);
+				}}
+				on:neodrag:start={() => {
+					{
+						selected_piece = hex;
+						show_available_moves(hex, user_id, socket_send);
+					}
+				}}
+				on:neodrag:end={() => {
+					if (hover_hex) {
+						move_piece(hex, hover_hex, user_id, socket_send);
+					}
+					board.update((board) => board);
+				}}
+				on:neodrag={(e) => {
+					console.log(e);
+				}}
 				style:position="absolute"
 			>
 				<input
@@ -168,7 +181,7 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
 			<!-- svelte-ignore a11y-mouse-events-have-key-events -->
-			<span 
+			<span
 				style:touch-action="none"
 				use:draggable={{
 					position: {
@@ -177,26 +190,41 @@
 					},
 					disabled: true
 				}}
-				on:pointerenter={() => {hover_hex = move}}
-				on:pointerleave={() => {hover_hex = null}}
-				
-				on:click={() => {move_piece(selected_piece, move, user_id, socket_send); hover_hex = null; valid_moves = [];}}
+				on:pointerenter={() => {
+					hover_hex = move;
+				}}
+				on:pointerleave={() => {
+					hover_hex = null;
+				}}
+				on:click={() => {
+					move_piece(selected_piece, move, user_id, socket_send);
+					hover_hex = null;
+					valid_moves = [];
+				}}
 				style:position="absolute"
 				style:display="block"
 				style:width="{board_w * 0.1}px"
 				style:height="{board_w * 0.1}px"
 			>
-
-				<span 
-				class="dot" 
-				style:position="relative"
-				style:left="{board_w * 0.035}px"
-				style:top="{board_w * 0.035}px"
-				style:width="{board_w * 0.03}px"
-				style:height="{board_w * 0.03}px"/>
+				<span
+					class="dot"
+					style:position="relative"
+					style:left="{board_w * 0.035}px"
+					style:top="{board_w * 0.035}px"
+					style:width="{board_w * 0.03}px"
+					style:height="{board_w * 0.03}px"
+				/>
 			</span>
 		{/each}
 	</div>
+	<a href="https://github.com/williamsnell/hexchess/tree/main/server">
+		<input
+			type="image"
+			src="/assets/github-mark-white.svg"
+			alt="github link"
+			class="github"
+		/>
+	</a>
 </body>
 
 <style>
@@ -212,7 +240,7 @@
 		padding-bottom: 0.2rem;
 		font-family: Arial, Helvetica, sans-serif;
 		font-weight: bolder;
-		margin-bottom: "30rem";
+		margin-bottom: 1rem;
 	}
 	.board {
 		max-height: 120vw;
@@ -222,6 +250,7 @@
 		margin-left: auto;
 		margin-right: auto;
 		padding: -5%;
+		margin-bottom: 1rem;
 	}
 	.dot {
 		background-color: #a5a195;
@@ -241,7 +270,7 @@
 	.button:active {
 		background: rgb(0, 0, 0, 0.2);
 		transition-duration: 0.2s;
-		color:aliceblue
+		color: aliceblue;
 	}
 	.button:hover {
 		background: rgba(255, 255, 255, 0.4);
@@ -251,9 +280,22 @@
 		margin-top: 1%;
 		margin-bottom: 1%;
 		border-radius: 2rem;
-		background:rgb(0, 0, 0, 0.2);
+		background: rgb(0, 0, 0, 0.2);
 		transition-duration: 0.5s;
-		display: "flex";
-		align-items: "center"
+		display: flex;
+		align-items: center;
+	}
+	.github {
+		position: flex;
+		margin-top: 30vh;
+		margin-left: 47.5vw;
+		width: 5vw;
+		background: rgb(0, 0, 0, 0.3);
+		border-radius: 2rem;
+		transition-duration: 0.6s;
+	}
+	.github:hover {
+		background: rgb(0, 0, 0);
+		transition-duration: 0.6s;
 	}
 </style>
