@@ -217,7 +217,7 @@
 			</span>
 		{/each}
 	</div>
-	<a href="https://github.com/williamsnell/hexchess/tree/main/server">
+	<a href="https://github.com/williamsnell/hexchess">
 		<input
 			type="image"
 			src="/assets/github-mark-white.svg"
