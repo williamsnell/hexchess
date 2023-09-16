@@ -9,6 +9,7 @@
 	$: valid_moves = [];
 	$: board_w = 0;
 	$: board_h = 0;
+	$: session_id = 0;
 
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
@@ -18,7 +19,7 @@
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
-			let session_id = payload.session;
+			session_id = payload.session;
 			// recompute the board positions since it may have flipped
 		} else if (payload.op == 'GameEnded') {
 			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
@@ -43,7 +44,7 @@
 	function setup_socket() {
 		// return a function that lets you send messages over the socket
 		if (browser) {
-			const BACKEND_URL = (window.location.protocol == "http:" ? "ws://127.0.0.1:7878" : "wss://playhexchess.com:443");
+			const BACKEND_URL = (window.location.protocol == "http:" ? "ws://127.0.0.1:7878/ws" : "wss://playhexchess.com:443/ws");
 			const socket = new WebSocket(BACKEND_URL);
 			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => socket.send(message);
 			socket.onmessage = (message) => handle_incoming_message(message);
@@ -97,12 +98,46 @@
 <title>Hexagonal Chessagonal</title>
 <body>
 	<div class="website_id">playhexchess.com</div>
+	<div id="menu" 
+		style:text-align="center"
+		style:height={session_id == 0 ? "4rem" : "2.2rem"}
+		style:width={session_id == 0 ? "100%" : "20.4rem"}
+		class="top-menu">
+		{#if browser}
+			<button
+				class="button"
+				style:height={session_id == 0 ? "4rem" : "2rem"}
+				on:click={socket_send(
+					`{"op": "JoinAnyGame",
+						"user_id": "${user_id}"}`
+				)}
+				style:width={session_id == 0 ? "49%" : "10rem"}
+				style:font-size={session_id == 0 ? "1.5rem" : "1rem"}
+			>
+				Multiplayer
+			</button>
+			<button
+				class="button"
+				style:height={session_id == 0 ? "4rem" : "2rem"}
+				on:click={socket_send(
+					`{"op": "CreateGame",
+					"user_id": "${user_id}",
+					"is_multiplayer": false}`
+				)}
+				style:width={session_id == 0 ? "49%" : "10rem"}
+				style:font-size={session_id == 0 ? "1.5rem" : "1rem"}
+			>
+			Singleplayer
+
+			</button>
+		{/if}
+	</div>
 	<div
 		bind:offsetWidth={board_w}
 		bind:offsetHeight={board_h}
 		class="board"
 	>
-		<img src="/assets/board.svg" alt="game board" />
+		<img src="/assets/board.svg" alt="game board"/>
 		{#each $board as { hex, position, img_src, alt }}
 			<div
 				class="piece"
@@ -162,39 +197,14 @@
 			</span>
 		{/each}
 	</div>
-	{#if browser}
-		<button
-			on:click={socket_send(
-				`{"op": "JoinAnyGame",
-					"user_id": "${user_id}"}`
-			)}
-		>
-			Join a Multiplayer Game
-		</button>
-		<button
-			on:click={socket_send(
-				`{"op": "CreateGame",
-				"user_id": "${user_id}",
-				"is_multiplayer": false}`
-			)}
-		>
-			Start a Singleplayer Game
-		</button>
-	{/if}
 </body>
 
 <style>
 	body {
-		background: rgb(22, 20, 49);
-		background: linear-gradient(
-			283deg,
-			rgb(22, 20, 49) 0%,
-			rgba(9, 9, 121, 1) 35%,
-			rgb(0, 71, 85) 100%
-		);
+		background: rgb(66, 64, 92);
 	}
 	.website_id {
-		color: rgb(255, 255, 255);
+		color: aliceblue;
 		background-color: rgb(0, 0, 0);
 		width: 6.6rem;
 		padding-left: 0.3rem;
@@ -202,14 +212,16 @@
 		padding-bottom: 0.2rem;
 		font-family: Arial, Helvetica, sans-serif;
 		font-weight: bolder;
+		margin-bottom: "30rem";
 	}
 	.board {
 		max-height: 120vw;
-		max-width: 70vh;
+		max-width: 80vh;
 		height: auto;
 		width: auto;
 		margin-left: auto;
 		margin-right: auto;
+		padding: -5%;
 	}
 	.dot {
 		background-color: #a5a195;
@@ -219,5 +231,29 @@
 	}
 	.piece {
 		touch-action: none;
+	}
+	.button {
+		transition-duration: 0.5s;
+		margin-left: auto;
+		margin-right: auto;
+		border-radius: 2rem;
+	}
+	.button:active {
+		background: rgb(0, 0, 0, 0.2);
+		transition-duration: 0.2s;
+		color:aliceblue
+	}
+	.button:hover {
+		background: rgba(255, 255, 255, 0.4);
+		transition-duration: 0.2s;
+	}
+	.top-menu {
+		margin-top: 1%;
+		margin-bottom: 1%;
+		border-radius: 2rem;
+		background:rgb(0, 0, 0, 0.2);
+		transition-duration: 0.5s;
+		display: "flex";
+		align-items: "center"
 	}
 </style>
