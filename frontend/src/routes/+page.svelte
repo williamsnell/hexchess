@@ -123,8 +123,8 @@
 		}
 	}
 
-	let hover_hex;
-	let selected_piece;
+	let hover_hex: string;
+	let selected_piece: string;
 </script>
 
 <svelte:head>
@@ -187,11 +187,11 @@
 					position: {
 						x:
 							board_w *
-							((-orient * position.x - (0.906 * (1 - orient)) / 2) * 0.97 +
-								0.94 -
+							((-orient * position.x - (0.909 * (1 - orient)) / 2) * 0.97 +
+								0.940 -
 								size * 0.23),
 						y:
-							((position.y - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
+							((position.y - (2.1815 * (1 - orient)) / 2) * -orient * 0.99 +
 								0.57 -
 								size * 0.17) *
 							board_h
