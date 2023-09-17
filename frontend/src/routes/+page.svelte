@@ -14,11 +14,12 @@
 	$: player_color = "Both";
 	$: current_player = "";
 
-	let board_rotate = "auto";
+	$: board_rotate = "auto";
 
 	$: orient = 1;
 
-	function choose_orientation() {
+	
+	function choose_orientation(player_color, current_player, board_rotate) {
 		if (board_rotate == "auto") {
 			if (player_color == "White") {
 				orient = 1;
@@ -38,6 +39,8 @@
 		}
 	}
 
+	$: choose_orientation(player_color, current_player, board_rotate);
+
 
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
@@ -45,13 +48,14 @@
 			valid_moves = payload.moves;
 		} else if (payload.op == 'BoardState') {
 			current_player = payload.board.current_player;
-			choose_orientation();
+			// choose_orientation();
+			
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
 			player_color = payload.color;
-			choose_orientation();
+			// choose_orientation();
 			// recompute the board positions since it may have flipped
 		} else if (payload.op == 'GameEnded') {
 			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
@@ -143,7 +147,7 @@
 		id="menu"
 		style:text-align="center"
 		style:height={session_id == 0 ? '4rem' : '2.2rem'}
-		style:width={session_id == 0 ? '100%' : '23.5rem'}
+		style:width={session_id == 0 ? '100%' : '16.4rem'}
 		class="top-menu"
 	>
 		{#if browser}
@@ -171,28 +175,7 @@
 				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
 				Singleplayer
-			</button>
-			{#if session_id != 0}
-				<div class="button">
-					<button 
-					class="button"
-					style:font-size="1rem"
-					style:width="7rem"
-					style:height="2rem"
-					on:click={() => {
-						if (board_rotate == "auto") {
-							board_rotate = "White";
-						} else if (board_rotate == "White") {
-							board_rotate = "Black";
-						} else if (board_rotate == "Black") {
-							board_rotate = "auto";
-						}
-						choose_orientation();
-					}
-					}
-					>Rotate {board_rotate}</button>
-				</div>
-			{/if}
+				</button>
 		{/if}
 	</div>
 	<div bind:offsetWidth={board_w} bind:offsetHeight={board_h} class="board">
@@ -293,6 +276,24 @@
 			</span>
 		{/each}
 	</div>
+	<div class="flip_button">
+		<button 
+		class="flip_button"
+		on:click={() => {
+			if (board_rotate == "auto") {
+				board_rotate = "White";
+			} else if (board_rotate == "White") {
+				board_rotate = "Black";
+			} else if (board_rotate == "Black") {
+				board_rotate = "auto";
+			}
+			// choose_orientation();
+		}
+		}
+		>
+		<h4>Rotate:</h4>
+		<p>{board_rotate}</p></button>
+	</div>
 </body>
 
 <style>
@@ -359,6 +360,26 @@
 		color: aliceblue;
 	}
 	.button:hover {
+		background: rgba(255, 255, 255, 0.4);
+		transition-duration: 0.2s;
+	}
+	.flip_button {
+		position: flex;
+		transition-duration: 0.5s;
+		margin-left: auto;
+		margin-right: 5%;
+		margin-top: -5%;
+		border-radius: 10vw;
+		font-size: calc(min(1rem, 3vw));
+		width: calc(min(5rem, 15vw));
+		height: calc(min(7rem, 20vw));
+	}
+	.flip_button:active {
+		background: rgb(0, 0, 0, 0.2);
+		transition-duration: 0.2s;
+		color: aliceblue;
+	}
+	.flip_button:hover {
 		background: rgba(255, 255, 255, 0.4);
 		transition-duration: 0.2s;
 	}
