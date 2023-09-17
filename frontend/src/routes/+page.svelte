@@ -11,6 +11,8 @@
 	$: board_h = 0;
 	$: session_id = 0;
 
+	$: orientation = 1;
+
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
@@ -103,21 +105,16 @@
 		<div class="website_id">playhexchess.com</div>
 		<div class="github">
 			<a href="https://github.com/williamsnell/hexchess">
-				<input
-					type="image"
-					src="/assets/github-mark-white.svg"
-					alt="github link"
-					class="github"
-				/>
+				<input type="image" src="/assets/github-mark-white.svg" alt="github link" class="github" />
 			</a>
 		</div>
 	</div>
 	<div
-	id="menu"
-	style:text-align="center"
-	style:height={session_id == 0 ? '4rem' : '2.2rem'}
-	style:width={session_id == 0 ? '100%' : '16.4rem'}
-	class="top-menu"
+		id="menu"
+		style:text-align="center"
+		style:height={session_id == 0 ? '4rem' : '2.2rem'}
+		style:width={session_id == 0 ? '100%' : '16.4rem'}
+		class="top-menu"
 	>
 		{#if browser}
 			<button
@@ -154,8 +151,16 @@
 				class="piece"
 				use:draggable={{
 					position: {
-						x: board_w * (position.x * 0.97 + 0.059 - size * 0.23),
-						y: (position.y * 0.99 - 1.59 - size * 0.17) * board_h
+						x:
+							board_w *
+							((-orientation * position.x - (0.906 * (1 - orientation)) / 2) * 0.97 +
+								0.94 -
+								size * 0.23),
+						y:
+							((position.y - (2.18 * (1 - orientation)) / 2) * -orientation * 0.99 +
+								0.57 -
+								size * 0.17) *
+							board_h
 					}
 				}}
 				on:pointerdown={(e) => {
@@ -197,8 +202,19 @@
 				style:touch-action="none"
 				use:draggable={{
 					position: {
-						x: board_w * (get_hexagon_position(move)[0] * 0.97 + 0.009),
-						y: (get_hexagon_position(move)[1] * 0.99 - 1.628) * board_h
+						x:
+							board_w *
+							((-orientation * get_hexagon_position(move)[0] - (0.906 * (1 - orientation)) / 2) *
+								0.97 +
+								0.94 -
+								size * 0.23),
+						y:
+							((get_hexagon_position(move)[1] - (2.18 * (1 - orientation)) / 2) *
+								-orientation *
+								0.99 +
+								0.57 -
+								size * 0.17) *
+							board_h
 					},
 					disabled: true
 				}}
