@@ -99,13 +99,25 @@
 
 <title>Hexagonal Chessagonal</title>
 <body>
-	<div class="website_id">playhexchess.com</div>
+	<div class="top-bar">
+		<div class="website_id">playhexchess.com</div>
+		<div class="github">
+			<a href="https://github.com/williamsnell/hexchess">
+				<input
+					type="image"
+					src="/assets/github-mark-white.svg"
+					alt="github link"
+					class="github"
+				/>
+			</a>
+		</div>
+	</div>
 	<div
-		id="menu"
-		style:text-align="center"
-		style:height={session_id == 0 ? '4rem' : '2.2rem'}
-		style:width={session_id == 0 ? '100%' : '16.4rem'}
-		class="top-menu"
+	id="menu"
+	style:text-align="center"
+	style:height={session_id == 0 ? '4rem' : '2.2rem'}
+	style:width={session_id == 0 ? '100%' : '16.4rem'}
+	class="top-menu"
 	>
 		{#if browser}
 			<button
@@ -217,24 +229,20 @@
 			</span>
 		{/each}
 	</div>
-	<a href="https://github.com/williamsnell/hexchess">
-		<input
-			type="image"
-			src="/assets/github-mark-white.svg"
-			alt="github link"
-			class="github"
-		/>
-	</a>
 </body>
 
 <style>
 	body {
 		background: rgb(66, 64, 92);
 	}
+	.top-bar {
+		display: flex;
+	}
 	.website_id {
 		color: aliceblue;
 		background-color: rgb(0, 0, 0);
 		width: 6.6rem;
+		height: 1rem;
 		padding-left: 0.3rem;
 		padding-top: 0.2rem;
 		padding-bottom: 0.2rem;
@@ -242,9 +250,23 @@
 		font-weight: bolder;
 		margin-bottom: 1rem;
 	}
+	.github {
+		position: flex;
+		margin-left: auto;
+		margin-right: 0;
+		width: 1rem;
+		height: 1rem;
+		background: rgb(0, 0, 0, 0.3);
+		border-radius: 1rem;
+		transition-duration: 0.6s;
+	}
+	.github:hover {
+		background: rgb(0, 0, 0);
+		transition-duration: 0.6s;
+	}
 	.board {
 		max-height: 120vw;
-		max-width: 80vh;
+		max-width: calc(89vh - 12rem);
 		height: auto;
 		width: auto;
 		margin-left: auto;
@@ -284,18 +306,5 @@
 		transition-duration: 0.5s;
 		display: flex;
 		align-items: center;
-	}
-	.github {
-		position: flex;
-		margin-top: 30vh;
-		margin-left: 47.5vw;
-		width: 5vw;
-		background: rgb(0, 0, 0, 0.3);
-		border-radius: 2rem;
-		transition-duration: 0.6s;
-	}
-	.github:hover {
-		background: rgb(0, 0, 0);
-		transition-duration: 0.6s;
 	}
 </style>
