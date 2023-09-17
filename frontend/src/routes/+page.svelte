@@ -19,7 +19,7 @@
 	$: orient = 1;
 
 	
-	function choose_orientation(player_color, current_player, board_rotate) {
+	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
 		if (board_rotate == "auto") {
 			if (player_color == "White") {
 				orient = 1;
