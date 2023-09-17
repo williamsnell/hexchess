@@ -11,17 +11,47 @@
 	$: board_h = 0;
 	$: session_id = 0;
 
-	$: orientation = 1;
+	$: player_color = "Both";
+	$: current_player = "";
+
+	let board_rotate = "auto";
+
+	$: orient = 1;
+
+	function choose_orientation() {
+		if (board_rotate == "auto") {
+			if (player_color == "White") {
+				orient = 1;
+			} else if (player_color == "Black") {
+				orient = -1;
+			} else if (player_color == "Both") {
+				if (current_player == "White") {
+					orient = 1;
+				} else {
+					orient = -1;
+				};
+			}
+		} else if (board_rotate == "White") {
+			orient = 1;
+		} else {
+			orient = -1;
+		}
+	}
+
 
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
 			valid_moves = payload.moves;
 		} else if (payload.op == 'BoardState') {
+			current_player = payload.board.current_player;
+			choose_orientation();
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
+			player_color = payload.color;
+			choose_orientation();
 			// recompute the board positions since it may have flipped
 		} else if (payload.op == 'GameEnded') {
 			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
@@ -113,7 +143,7 @@
 		id="menu"
 		style:text-align="center"
 		style:height={session_id == 0 ? '4rem' : '2.2rem'}
-		style:width={session_id == 0 ? '100%' : '16.4rem'}
+		style:width={session_id == 0 ? '100%' : '23.5rem'}
 		class="top-menu"
 	>
 		{#if browser}
@@ -142,6 +172,27 @@
 			>
 				Singleplayer
 			</button>
+			{#if session_id != 0}
+				<div class="button">
+					<button 
+					class="button"
+					style:font-size="1rem"
+					style:width="7rem"
+					style:height="2rem"
+					on:click={() => {
+						if (board_rotate == "auto") {
+							board_rotate = "White";
+						} else if (board_rotate == "White") {
+							board_rotate = "Black";
+						} else if (board_rotate == "Black") {
+							board_rotate = "auto";
+						}
+						choose_orientation();
+					}
+					}
+					>Rotate {board_rotate}</button>
+				</div>
+			{/if}
 		{/if}
 	</div>
 	<div bind:offsetWidth={board_w} bind:offsetHeight={board_h} class="board">
@@ -153,11 +204,11 @@
 					position: {
 						x:
 							board_w *
-							((-orientation * position.x - (0.906 * (1 - orientation)) / 2) * 0.97 +
+							((-orient * position.x - (0.906 * (1 - orient)) / 2) * 0.97 +
 								0.94 -
 								size * 0.23),
 						y:
-							((position.y - (2.18 * (1 - orientation)) / 2) * -orientation * 0.99 +
+							((position.y - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
 								0.57 -
 								size * 0.17) *
 							board_h
@@ -177,9 +228,6 @@
 						move_piece(hex, hover_hex, user_id, socket_send);
 					}
 					board.update((board) => board);
-				}}
-				on:neodrag={(e) => {
-					console.log(e);
 				}}
 				style:position="absolute"
 			>
@@ -204,13 +252,13 @@
 					position: {
 						x:
 							board_w *
-							((-orientation * get_hexagon_position(move)[0] - (0.906 * (1 - orientation)) / 2) *
+							((-orient * get_hexagon_position(move)[0] - (0.906 * (1 - orient)) / 2) *
 								0.97 +
 								0.94 -
 								size * 0.23),
 						y:
-							((get_hexagon_position(move)[1] - (2.18 * (1 - orientation)) / 2) *
-								-orientation *
+							((get_hexagon_position(move)[1] - (2.18 * (1 - orient)) / 2) *
+								-orient *
 								0.99 +
 								0.57 -
 								size * 0.17) *
