@@ -12,7 +12,8 @@
 	import { browser } from '$app/environment';
 	import { get_hexagon_position } from './get_hexagon_position.js';
 
-	import { transform, isEqual, isArray, isObject, isEmpty } from 'lodash';
+	import pkg from 'lodash';
+	const { isEmpty, transform, isEqual, isArray, isObject } = pkg;
 
 	$: valid_moves = [];
 	$: board_w = 0;
@@ -26,6 +27,7 @@
 	$: board_rotate = 'auto';
 
 	$: orient = 1;
+	$: last_move = {};
 
 	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
 		if (board_rotate == 'auto') {
@@ -63,7 +65,6 @@
 		return changes(newObj, origObj);
 	}
 
-	$: last_move = {};
 
 	function sort_object_by_keys(object) {
 		return Object.keys(object)
@@ -114,8 +115,7 @@
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
 			player_color = payload.color;
-			// choose_orientation();
-			// recompute the board positions since it may have flipped
+			last_move = {};
 		} else if (payload.op == 'GameEnded') {
 			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
 		}
