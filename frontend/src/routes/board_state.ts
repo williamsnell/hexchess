@@ -5,7 +5,7 @@ import { writable } from "svelte/store";
 
 const board_json = { "op": "BoardState", "board": { "occupied_squares": { }, "en_passant": null, "current_player": "White" } }
 
-class Board {
+export class Board {
     occupied_squares!: Record<Hexagon, Piece>;
     en_passant!: Hexagon | null // although this is property may be null,
     // it is always required in the message

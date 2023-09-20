@@ -1,38 +1,46 @@
 <script lang="ts">
 	import { get_piece_asset } from './assets.js';
-	import { board, instantiate_pieces, show_available_moves, move_piece } from './board_state.js';
+	import {
+		board,
+		Board,
+		instantiate_pieces,
+		show_available_moves,
+		move_piece
+	} from './board_state.js';
 	import { Color, PieceType } from './hexchess_logic.js';
 	import { draggable } from '@neodrag/svelte';
 	import { browser } from '$app/environment';
 	import { get_hexagon_position } from './get_hexagon_position.js';
 
+	import { transform, isEqual, isArray, isObject, isEmpty } from 'lodash';
+
 	$: valid_moves = [];
 	$: board_w = 0;
 	$: board_h = 0;
 	$: session_id = 0;
+	$: previous_board = [];
 
-	$: player_color = "Both";
-	$: current_player = "";
+	$: player_color = 'Both';
+	$: current_player = '';
 
-	$: board_rotate = "auto";
+	$: board_rotate = 'auto';
 
 	$: orient = 1;
 
-	
 	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
-		if (board_rotate == "auto") {
-			if (player_color == "White") {
+		if (board_rotate == 'auto') {
+			if (player_color == 'White') {
 				orient = 1;
-			} else if (player_color == "Black") {
+			} else if (player_color == 'Black') {
 				orient = -1;
-			} else if (player_color == "Both") {
-				if (current_player == "White") {
+			} else if (player_color == 'Both') {
+				if (current_player == 'White') {
 					orient = 1;
 				} else {
 					orient = -1;
-				};
+				}
 			}
-		} else if (board_rotate == "White") {
+		} else if (board_rotate == 'White') {
 			orient = 1;
 		} else {
 			orient = -1;
@@ -41,6 +49,57 @@
 
 	$: choose_orientation(player_color, current_player, board_rotate);
 
+	function difference(origObj, newObj) {
+		function changes(newObj, origObj) {
+			let arrayIndexCounter = 0;
+			return transform(newObj, function (result, value, key) {
+				if (key != 'position' && !isEqual(value, origObj[key])) {
+					let resultKey = isArray(origObj) ? arrayIndexCounter++ : key;
+					result[resultKey] =
+						isObject(value) && isObject(origObj[key]) ? changes(value, origObj[key]) : value;
+				}
+			});
+		}
+		return changes(newObj, origObj);
+	}
+
+	$: last_move = {};
+
+	function sort_object_by_keys(object) {
+		return Object.keys(object)
+			.sort()
+			.reduce((obj, key) => {
+				obj[key] = object[key];
+				return obj;
+			}, {});
+	}
+
+	function get_last_move(board) {
+		// get the hex and alt (piece and color)
+		let new_pieces = {};
+		$board.forEach((val) => (new_pieces[val.hex] = val.alt));
+
+		let old_pieces = {};
+		previous_board.forEach((val) => (old_pieces[val.hex] = val.alt));
+
+		// console.log(previous_board);
+
+		// sort everything
+		old_pieces = sort_object_by_keys(old_pieces);
+		new_pieces = sort_object_by_keys(new_pieces);
+
+		// console.log(old_pieces, "\n\n", new_pieces);
+
+		let delta = difference(old_pieces, new_pieces);
+		console.log(delta);
+		if (!isEmpty(delta)) {
+			last_move = delta;
+			console.log(get_hexagon_position(Object.keys(last_move)[0])[0])
+			previous_board = structuredClone($board);
+		}
+	}
+
+	$: $board, get_last_move(board);
 
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
@@ -49,7 +108,7 @@
 		} else if (payload.op == 'BoardState') {
 			current_player = payload.board.current_player;
 			// choose_orientation();
-			
+
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
@@ -127,12 +186,6 @@
 	let selected_piece: string;
 </script>
 
-<svelte:head>
-	{#each piece_images as image}
-		<link rel="preload" as="image" href={image} />
-	{/each}
-</svelte:head>
-
 <title>Hexagonal Chessagonal</title>
 <body>
 	<div class="top-bar">
@@ -175,11 +228,43 @@
 				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
 				Singleplayer
-				</button>
+			</button>
 		{/if}
 	</div>
 	<div bind:offsetWidth={board_w} bind:offsetHeight={board_h} class="board">
 		<img src="/assets/board.svg" alt="game board" />
+		{#if !isEmpty(last_move)}
+			<span
+				use:draggable={{
+					position: {
+						x:
+							board_w *
+							((-orient * get_hexagon_position(Object.keys(last_move)[0])[0] - (0.906 * (1 - orient)) / 2) * 0.97 +
+								0.94 -
+								size * 0.23),
+						y:
+							((get_hexagon_position(Object.keys(last_move)[0])[1] - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
+								0.57 -
+								size * 0.17) *
+							board_h
+					},
+					disabled: true
+				}}
+				style:position="absolute"
+				style:display="block"
+				style:width="{board_w * 0.1}px"
+				style:height="{board_w * 0.1}px"
+			>
+				<span
+					class="highlight_dot"
+					style:position="relative"
+					style:left="{board_w * 0.00}px"
+					style:top="{board_w * 0.00}px"
+					style:width="{board_w * 0.1}px"
+					style:height="{board_w * 0.1}px"
+				/>
+			</span>
+		{/if}
 		{#each $board as { hex, position, img_src, alt }}
 			<div
 				class="piece"
@@ -187,13 +272,9 @@
 					position: {
 						x:
 							board_w *
-							((-orient * position.x - (0.909 * (1 - orient)) / 2) * 0.97 +
-								0.940 -
-								size * 0.23),
+							((-orient * position.x - (0.909 * (1 - orient)) / 2) * 0.97 + 0.94 - size * 0.23),
 						y:
-							((position.y - (2.1815 * (1 - orient)) / 2) * -orient * 0.99 +
-								0.57 -
-								size * 0.17) *
+							((position.y - (2.1815 * (1 - orient)) / 2) * -orient * 0.99 + 0.57 - size * 0.17) *
 							board_h
 					}
 				}}
@@ -235,14 +316,11 @@
 					position: {
 						x:
 							board_w *
-							((-orient * get_hexagon_position(move)[0] - (0.906 * (1 - orient)) / 2) *
-								0.97 +
+							((-orient * get_hexagon_position(move)[0] - (0.906 * (1 - orient)) / 2) * 0.97 +
 								0.94 -
 								size * 0.23),
 						y:
-							((get_hexagon_position(move)[1] - (2.18 * (1 - orient)) / 2) *
-								-orient *
-								0.99 +
+							((get_hexagon_position(move)[1] - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
 								0.57 -
 								size * 0.17) *
 							board_h
@@ -277,22 +355,22 @@
 		{/each}
 	</div>
 	<div class="flip_button">
-		<button 
-		class="flip_button"
-		on:click={() => {
-			if (board_rotate == "auto") {
-				board_rotate = "White";
-			} else if (board_rotate == "White") {
-				board_rotate = "Black";
-			} else if (board_rotate == "Black") {
-				board_rotate = "auto";
-			}
-			// choose_orientation();
-		}
-		}
+		<button
+			class="flip_button"
+			on:click={() => {
+				if (board_rotate == 'auto') {
+					board_rotate = 'White';
+				} else if (board_rotate == 'White') {
+					board_rotate = 'Black';
+				} else if (board_rotate == 'Black') {
+					board_rotate = 'auto';
+				}
+				// choose_orientation();
+			}}
 		>
-		<h4>Rotate:</h4>
-		<p>{board_rotate}</p></button>
+			<h4>Rotate:</h4>
+			<p>{board_rotate}</p></button
+		>
 	</div>
 </body>
 
@@ -341,6 +419,12 @@
 	}
 	.dot {
 		background-color: #a5a195;
+		border-radius: 50%;
+		display: inline-block;
+		touch-action: none;
+	}
+	.highlight_dot {
+		background-color: #ffbf00c5;
 		border-radius: 50%;
 		display: inline-block;
 		touch-action: none;

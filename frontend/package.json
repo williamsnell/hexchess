@@ -32,6 +32,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@neodrag/svelte": "^2.0.3"
+		"@neodrag/svelte": "^2.0.3",
+		"lodash": "^4.17.21"
 	}
 }
