@@ -11,7 +11,7 @@
 	import { draggable } from '@neodrag/svelte';
 	import { browser } from '$app/environment';
 	import { get_hexagon_position } from './get_hexagon_position.js';
-
+ 
 	import pkg from 'lodash';
 	const { isEmpty, transform, isEqual, isArray, isObject } = pkg;
 
@@ -108,11 +108,11 @@
 		let delta = difference(old_pieces, new_pieces);
 		console.log(delta);
 		if (!isEmpty(delta)) {
-			// if (Object.keys(delta).length == 1) {
-			last_move = delta;
-			// } else {
-			// 	last_move = [];
-			// }
+			if (Object.keys(delta).length == 1) {
+				last_move = delta;
+			} else {
+				last_move = [];
+			}
 			previous_board = structuredClone($board);
 		}
 	}
