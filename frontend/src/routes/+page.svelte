@@ -255,14 +255,12 @@
 				style:width="{board_w * 0.1}px"
 				style:height="{board_w * 0.1}px"
 			>
-				<span
-					class="highlight_dot"
-					style:position="relative"
-					style:left="{board_w * 0.00}px"
-					style:top="{board_w * 0.00}px"
-					style:width="{board_w * 0.1}px"
-					style:height="{board_w * 0.1}px"
-				/>
+			<img src="/assets/highlight.svg" alt="highlighted hexagon"
+			style:position="relative"
+			style:left="{board_w * -0.0089}px"
+			style:top="{board_w * -0.01}px"
+			style:width="{board_w * 0.1195}px"
+			style:height="{board_w * 0.1195}px" />
 			</span>
 		{/if}
 		{#each $board as { hex, position, img_src, alt }}
