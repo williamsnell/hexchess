@@ -29,6 +29,21 @@
 	$: orient = 1;
 	$: last_move = {};
 
+	let size = 0.25;
+
+	function position_to_screenspace(
+		x_fraction: number,
+		y_fraction: number,
+		board_w: number,
+		board_h: number,
+		orient: number
+	) {
+		return {
+			x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
+			y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
+		};
+	}
+
 	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
 		if (board_rotate == 'auto') {
 			if (player_color == 'White') {
@@ -65,7 +80,6 @@
 		return changes(newObj, origObj);
 	}
 
-
 	function sort_object_by_keys(object) {
 		return Object.keys(object)
 			.sort()
@@ -94,8 +108,11 @@
 		let delta = difference(old_pieces, new_pieces);
 		console.log(delta);
 		if (!isEmpty(delta)) {
+			// if (Object.keys(delta).length == 1) {
 			last_move = delta;
-			console.log(get_hexagon_position(Object.keys(last_move)[0])[0])
+			// } else {
+			// 	last_move = [];
+			// }
 			previous_board = structuredClone($board);
 		}
 	}
@@ -115,7 +132,6 @@
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
 			player_color = payload.color;
-			last_move = {};
 		} else if (payload.op == 'GameEnded') {
 			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
 		}
@@ -172,8 +188,6 @@
 			sessionStorage.setItem('player_id', user_id);
 		}
 	}
-
-	let size = 0.22;
 
 	let piece_images: Array<string> = [];
 	for (const color in Color) {
@@ -236,18 +250,13 @@
 		{#if !isEmpty(last_move)}
 			<span
 				use:draggable={{
-					position: {
-						x:
-							board_w *
-							((-orient * get_hexagon_position(Object.keys(last_move)[0])[0] - (0.906 * (1 - orient)) / 2) * 0.97 +
-								0.94 -
-								size * 0.23),
-						y:
-							((get_hexagon_position(Object.keys(last_move)[0])[1] - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
-								0.57 -
-								size * 0.17) *
-							board_h
-					},
+					position: position_to_screenspace(
+						get_hexagon_position(Object.keys(last_move)[0])[0],
+						get_hexagon_position(Object.keys(last_move)[0])[1],
+						board_w,
+						board_h,
+						orient
+					),
 					disabled: true
 				}}
 				style:position="absolute"
@@ -255,26 +264,22 @@
 				style:width="{board_w * 0.1}px"
 				style:height="{board_w * 0.1}px"
 			>
-			<img src="/assets/highlight.svg" alt="highlighted hexagon"
-			style:position="relative"
-			style:left="{board_w * -0.0089}px"
-			style:top="{board_w * -0.01}px"
-			style:width="{board_w * 0.1195}px"
-			style:height="{board_w * 0.1195}px" />
+				<img
+					src="/assets/highlight.svg"
+					alt="highlighted hexagon"
+					style:position="relative"
+					style:left="{board_w * -0.055}px"
+					style:top="{board_w * -0.04}px"
+					style:width="{board_w * 0.1195}px"
+					style:height="{board_w * 0.1195}px"
+				/>
 			</span>
 		{/if}
 		{#each $board as { hex, position, img_src, alt }}
 			<div
 				class="piece"
 				use:draggable={{
-					position: {
-						x:
-							board_w *
-							((-orient * position.x - (0.909 * (1 - orient)) / 2) * 0.97 + 0.94 - size * 0.23),
-						y:
-							((position.y - (2.1815 * (1 - orient)) / 2) * -orient * 0.99 + 0.57 - size * 0.17) *
-							board_h
-					}
+					position: position_to_screenspace(position.x, position.y, board_w, board_h, orient)
 				}}
 				on:pointerdown={(e) => {
 					e.target.releasePointerCapture(e.pointerId);
@@ -296,8 +301,9 @@
 				<input
 					type="image"
 					src={img_src}
-					style:left="0px"
-					style:top="0px"
+					style:position="relative"
+					style:left="{size * -0.48 * board_w}%"
+					style:margin-top="{-size * 0.34 * board_h}%"
 					style:width="{size * board_w}%"
 					{alt}
 				/>
@@ -311,18 +317,13 @@
 			<span
 				style:touch-action="none"
 				use:draggable={{
-					position: {
-						x:
-							board_w *
-							((-orient * get_hexagon_position(move)[0] - (0.906 * (1 - orient)) / 2) * 0.97 +
-								0.94 -
-								size * 0.23),
-						y:
-							((get_hexagon_position(move)[1] - (2.18 * (1 - orient)) / 2) * -orient * 0.99 +
-								0.57 -
-								size * 0.17) *
-							board_h
-					},
+					position: position_to_screenspace(
+						get_hexagon_position(move)[0],
+						get_hexagon_position(move)[1],
+						board_w,
+						board_h,
+						orient
+					),
 					disabled: true
 				}}
 				on:pointerenter={() => {
@@ -344,8 +345,8 @@
 				<span
 					class="dot"
 					style:position="relative"
-					style:left="{board_w * 0.035}px"
-					style:top="{board_w * 0.035}px"
+					style:left="{-board_w * 0.015}px"
+					style:top="{board_w * 0.0}px"
 					style:width="{board_w * 0.03}px"
 					style:height="{board_w * 0.03}px"
 				/>
@@ -417,12 +418,6 @@
 	}
 	.dot {
 		background-color: #a5a195;
-		border-radius: 50%;
-		display: inline-block;
-		touch-action: none;
-	}
-	.highlight_dot {
-		background-color: #ffbf00c5;
 		border-radius: 50%;
 		display: inline-block;
 		touch-action: none;
