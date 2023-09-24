@@ -271,10 +271,10 @@
 					alt="highlighted hexagon"
 					style:position="relative"
 					style:display="block"
-					style:top="{-board_w * 0.06}px"
-					style:left="{-board_w * 0.06}px"
-					style:width="{board_w * 0.1195}px"
-					style:height="{board_w * 0.1195}px"
+					style:left="{-board_w * 0.0625}px"
+					style:top="{-board_w * 0.0635}px"
+					style:width="{board_w * 0.1195 * 1.04}px"
+					style:height="{board_w * 0.1195 * 1.04}px"
 				/>
 			</span>
 		{/if}
