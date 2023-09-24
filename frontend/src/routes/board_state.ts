@@ -48,6 +48,7 @@ export function move_piece(start_hex, destination_hex, user_id, socket_send) {
           `{"op": "RegisterMove",
               "user_id": "${user_id}",
               "start_hexagon": "${start_hex}",
-              "final_hexagon": "${destination_hex}"}`
+              "final_hexagon": "${destination_hex}",
+              "promotion_choice": "Queen"}`
         );
       }
