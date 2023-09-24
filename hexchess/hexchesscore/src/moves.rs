@@ -413,7 +413,6 @@ pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
 pub fn is_promotion_hex(hexagon: &Hexagon, color: &Color) -> bool {
     let (q, r) = chess_to_axial_coords(hexagon);
     let s = calc_s(q, r);
-    dbg!(q, r, s);
 
     match color {
         Color::Black => {

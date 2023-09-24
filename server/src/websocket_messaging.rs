@@ -1,4 +1,4 @@
-use hexchesscore::{check_for_mates, get_valid_moves, register_move, Board, Color, Hexagon, Mate};
+use hexchesscore::{check_for_mates, get_valid_moves, register_move, Board, Hexagon, Mate, PieceType};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -41,6 +41,7 @@ pub enum IncomingMessage {
         user_id: String,
         start_hexagon: Hexagon,
         final_hexagon: Hexagon,
+        promotion_choice: Option<PieceType>
     },
     CreateGame {
         user_id: String,
@@ -163,6 +164,7 @@ pub async fn handle_incoming_ws_message(
             user_id,
             start_hexagon,
             final_hexagon,
+            promotion_choice
         } => {
             uuid_user_id = Uuid::parse_str(&user_id).unwrap();
 
@@ -191,6 +193,7 @@ pub async fn handle_incoming_ws_message(
                                 board,
                                 double_jump,
                                 promotion_moves,
+                                promotion_choice,
                             );
 
                             if let Some(mate) = check_for_mates(board) {

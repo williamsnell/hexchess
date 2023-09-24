@@ -422,6 +422,7 @@ pub fn register_move(
     board: &mut Board,
     double_jump: Option<Hexagon>,
     promotion_moves: Vec<Hexagon>,
+    promotion_choice: Option<PieceType>,
 ) -> Result<Color, HexChessError> {
     // If succesful, return the color of the player whose turn
     // it will now be.
@@ -435,27 +436,41 @@ pub fn register_move(
     // try remove the moving piece from the old hex
     match board.occupied_squares.remove(&start_hexagon) {
         Some(piece) => {
-            // try insert the moving piece in the new hex
-            match board.occupied_squares.insert(*final_hexagon, piece) {
-                Some(_) => {}
-                None => {
-                    // if we have just completed an en-passant,
-                    // we need to remove the pawn one hexagon
-                    // up or down
-                    holy_hell(board, final_hexagon, valid_player);
+            // check if we're trying to promote           
+            if matches!(piece.piece_type, PieceType::Pawn) && promotion_moves.contains(final_hexagon) {
+                if promotion_choice.is_some() && !matches!(promotion_choice.unwrap(), PieceType::Pawn) {
+                    // make sure a promotion choice has been selected and it isn't a pawn
+                    let newly_created_piece = Piece{piece_type: promotion_choice.unwrap(), color: moving_color};
+                    board.occupied_squares.insert(*final_hexagon, newly_created_piece);
                 }
-            };
-
-            // If a pawn has double jumped, then we need to register it as
-            // the latest en-passant. On the other hand, if there was no
-            // double jump, the latest en-passant will be None
-            match double_jump {
-                Some(hex) => {
-                    if final_hexagon == &hex {
-                        board.en_passant = double_jump;
+                else {
+                    board.occupied_squares.insert(*start_hexagon, piece);
+                    return Err(HexChessError::FailedToRegisterMove)
+                }
+            }
+            else {
+                // try insert the moving piece in the new hex
+                match board.occupied_squares.insert(*final_hexagon, piece) {
+                    Some(_) => {}
+                    None => {
+                        // if we have just completed an en-passant,
+                        // we need to remove the pawn one hexagon
+                        // up or down
+                        holy_hell(board, final_hexagon, valid_player);
                     }
+                };
+    
+                // If a pawn has double jumped, then we need to register it as
+                // the latest en-passant. On the other hand, if there was no
+                // double jump, the latest en-passant will be None
+                match double_jump {
+                    Some(hex) => {
+                        if final_hexagon == &hex {
+                            board.en_passant = double_jump;
+                        }
+                    }
+                    _ => board.en_passant = None,
                 }
-                _ => board.en_passant = None,
             }
 
             board.current_player = moving_color.invert();
