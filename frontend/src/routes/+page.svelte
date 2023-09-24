@@ -119,8 +119,7 @@
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
 			valid_moves = payload.moves;
-			promotion_moves = payload.moves;
-			console.log(payload.promotion_moves);
+			promotion_moves = payload.promotion_moves;
 		} else if (payload.op == 'BoardState') {
 			current_player = payload.board.current_player;
 			board.update(() => instantiate_pieces(payload.board));
