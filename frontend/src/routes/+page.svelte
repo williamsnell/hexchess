@@ -41,8 +41,8 @@
 		return {
 			// x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
 			// y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
-			x: board_w * (orient * x_fraction + 0.5),
-			y: board_h * (-orient * y_fraction - 0.5)			
+			x: board_w * (orient * x_fraction + 0.5 - 0.02) * 1.04,
+			y: board_h * (-orient * y_fraction - 0.5) 		
 		};
 	}
  
@@ -248,7 +248,9 @@
 		{/if}
 	</div>
 	<div bind:clientWidth={board_w} bind:clientHeight={board_h} class="board">
-		<img src="/assets/board.svg" alt="game board" style:display="block"/>
+		<img src="/assets/board.svg" alt="game board" style:display="block"
+		style:margin-left="-2%"
+		style:margin-right="-2%"/>
 		{#if !isEmpty(last_move)}
 			<span
 				use:draggable={{
