@@ -99,16 +99,11 @@
 		let old_pieces = {};
 		previous_board.forEach((val) => (old_pieces[val.hex] = val.alt));
 
-		// console.log(previous_board);
-
 		// sort everything
 		old_pieces = sort_object_by_keys(old_pieces);
 		new_pieces = sort_object_by_keys(new_pieces);
 
-		// console.log(old_pieces, "\n\n", new_pieces);
-
 		let delta = difference(old_pieces, new_pieces);
-		console.log(delta);
 		if (!isEmpty(delta)) {
 			if (Object.keys(delta).length == 1) {
 				last_move = delta;
