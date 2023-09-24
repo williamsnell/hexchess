@@ -263,15 +263,14 @@
 				}}
 				style:position="absolute"
 				style:display="block"
-				style:width="{board_w * 0.1}px"
-				style:height="{board_w * 0.1}px"
-				style:bottom="-3.8%"
 			>
 				<img
 					src="/assets/highlight.svg"
 					alt="highlighted hexagon"
 					style:position="relative"
-					style:left="{-board_w * 0.064}px"
+					style:display="block"
+					style:top="{-board_w * 0.06}px"
+					style:left="{-board_w * 0.06}px"
 					style:width="{board_w * 0.1195}px"
 					style:height="{board_w * 0.1195}px"
 				/>
@@ -344,13 +343,18 @@
 				}}
 				style:position="absolute"
 				style:display="block"
+				style:width="9%"
+				style:height="8.5%"
+				style:left="-4.75%"
+				style:bottom="-4.5%"
+				style:border-radius="50%"
 			>
 				<span
 					class="dot"
 					style:position="relative"
 					style:display="block"
-					style:left="-45%"
-					style:top="-{board_w * 0.015}px"
+					style:left="35%"
+					style:top="35%"
 					style:width="{board_w * 0.03}px"
 					style:height="{board_w * 0.03}px"
 				/>
@@ -417,7 +421,6 @@
 		width: auto;
 		margin-left: auto;
 		margin-right: auto;
-		border-style: solid;
 	}
 	.dot {
 		background-color: #a5a195;
