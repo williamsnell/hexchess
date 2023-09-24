@@ -92,9 +92,7 @@ pub async fn handle_incoming_ws_message(
     let decoded: IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
 
     let uuid_user_id;
-
-    dbg!(&sessions.read().await.joinable_sessions);
-
+    
     match decoded {
         IncomingMessage::CreateGame {
             user_id,
