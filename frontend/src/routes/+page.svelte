@@ -305,7 +305,7 @@
 				<input
 					type="image"
 					style:display="block"
-					src="{src}#svgView(viewBox(3, 10, 39, 28))"
+					{src}
 					style:width="100%"
 					style:height="100%"
 					{alt}
