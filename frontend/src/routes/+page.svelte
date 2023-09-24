@@ -40,9 +40,7 @@
 		orient: number
 	) {
 		return {
-			// x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
-			// y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
-			x: board_w * (orient * x_fraction + 0.5 - 0.02) * 1.04,
+			x: board_w * (orient * x_fraction + 0.5),
 			y: board_h * (-orient * y_fraction - 0.5)
 		};
 	}
@@ -249,8 +247,6 @@
 			src="/assets/board.svg"
 			alt="game board"
 			style:display="block"
-			style:margin-left="-2%"
-			style:margin-right="-2%"
 		/>
 		{#if !isEmpty(last_move)}
 			<span
@@ -272,10 +268,10 @@
 					alt="highlighted hexagon"
 					style:position="relative"
 					style:display="block"
-					style:left="{-board_w * 0.0625}px"
-					style:top="{-board_w * 0.0635}px"
-					style:width="{board_w * 0.1195 * 1.04}px"
-					style:height="{board_w * 0.1195 * 1.04}px"
+					style:left="{-board_w * 0.061}px"
+					style:top="{-board_w * 0.06}px"
+					style:width="{board_w * 0.1195}px"
+					style:height="{board_w * 0.1195}px"
 				/>
 			</span>
 		{/if}
