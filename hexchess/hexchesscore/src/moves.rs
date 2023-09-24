@@ -373,17 +373,16 @@ pub fn pawn_moves_double_jump(hexagon: &Hexagon, color: &Color, board: &Board) -
 pub fn pawn_moves_not_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     let mut moves = Vec::<Hexagon>::new();
     let (q, r) = chess_to_axial_coords(&hexagon);
+    let s = calc_s(q, r);
 
     // add the normal, single forward move
-    moves.push(axial_to_chess_coords(
-        q,
-        if matches!(color, Color::White) {
-            r + 1
-        } else {
-            r - 1
-        },
-    ));
-    // ignore promotion for now, again a future headache
+    if matches!(color, Color::White) & (s > 0) & (r < 10) {
+        moves.push(axial_to_chess_coords(
+            q, r + 1));
+    } else if (r > 0) & (s < 10) {
+        moves.push(axial_to_chess_coords(
+            q, r - 1));
+    };
 
     moves
 }
@@ -393,14 +392,14 @@ pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     let (q, r) = chess_to_axial_coords(&hexagon);
     let s = calc_s(q, r);
     // white attacking
-    if matches!(color, Color::White) & (s > 0) {
+    if matches!(color, Color::White) & (s > 0) & (r < 10) {
         if q > 0 {
             valid_moves.push(axial_to_chess_coords(q - 1, r));
         }
         if q < 10 {
             valid_moves.push(axial_to_chess_coords(q + 1, r + 1))
         }
-    } else if r > 0 {
+    } else if matches!(color, Color::Black) & (r > 0) & (s < 10) {
         if q > 0 {
             valid_moves.push(axial_to_chess_coords(q - 1, r - 1));
         }
@@ -411,12 +410,36 @@ pub fn pawn_moves_attacking(hexagon: &Hexagon, color: &Color) -> Vec<Hexagon> {
     valid_moves
 }
 
+pub fn is_promotion_hex(hexagon: &Hexagon, color: &Color) -> bool {
+    let (q, r) = chess_to_axial_coords(hexagon);
+    let s = calc_s(q, r);
+    dbg!(q, r, s);
+
+    match color {
+        Color::Black => {
+            if (r == 0) || (s == 10) {
+                true
+            } else {
+                false
+            }
+        }
+        Color::White => {
+            if (s == 0) || (r == 10) {
+                true
+            } else {
+                false
+            }
+        }
+    }
+}
+
 pub fn pawn_moves(
     hexagon: &Hexagon,
     color: &Color,
     board: &Board,
-) -> (Vec<Hexagon>, Option<Hexagon>) {
+) -> (Vec<Hexagon>, Option<Hexagon>, Vec<Hexagon>) {
     let mut valid_moves = Vec::<Hexagon>::new();
+    let mut promotion_moves = Vec::<Hexagon>::new();
 
     let attacking = pawn_moves_attacking(hexagon, color);
     let not_attacking = pawn_moves_not_attacking(hexagon, color);
@@ -464,5 +487,15 @@ pub fn pawn_moves(
             valid_moves.push(double_jump.unwrap());
         }
     }
-    (valid_moves, double_jump)
+
+    for hex in &valid_moves {
+        if is_promotion_hex(&hex, color) {
+            // override the rank
+            promotion_moves.push(*hex);
+        }
+    }
+
+    // if any move falls on a promotion hex, offer up the different promotion
+    //
+    (valid_moves, double_jump, promotion_moves)
 }

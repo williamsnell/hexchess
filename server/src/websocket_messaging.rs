@@ -63,6 +63,7 @@ pub enum IncomingMessage {
 pub enum OutgoingMessage<'a> {
     ValidMoves {
         moves: &'a Vec<Hexagon>,
+        promotion_moves: &'a Vec<Hexagon>,
     },
     BoardState {
         board: &'a Board,
@@ -143,9 +144,13 @@ pub async fn handle_incoming_ws_message(
                 // try and process the move
                 if let Some(piece) = valid_session.board.occupied_squares.get(&hexagon).cloned() {
                     // match piece type to valid moves
-                    let (moves, _) = get_valid_moves(&hexagon, &piece, &mut valid_session.board);
+                    let (moves, _, promotion_moves) =
+                        get_valid_moves(&hexagon, &piece, &mut valid_session.board);
 
-                    let outgoing = OutgoingMessage::ValidMoves { moves: &moves };
+                    let outgoing = OutgoingMessage::ValidMoves {
+                        moves: &moves,
+                        promotion_moves: &promotion_moves,
+                    };
                     tx.send(warp::ws::Message::text(
                         serde_json::to_string(&outgoing).unwrap(),
                     ))
@@ -176,11 +181,17 @@ pub async fn handle_incoming_ws_message(
                     // try and process the move
                     if let Some(piece) = board.occupied_squares.get(&start_hexagon).cloned() {
                         // match piece type to valid moves
-                        let (moves, double_jump) = get_valid_moves(&start_hexagon, &piece, board);
+                        let (moves, double_jump, promotion_moves) =
+                            get_valid_moves(&start_hexagon, &piece, board);
 
                         if moves.contains(&final_hexagon) {
-                            let _ =
-                                register_move(&start_hexagon, &final_hexagon, board, double_jump);
+                            let _ = register_move(
+                                &start_hexagon,
+                                &final_hexagon,
+                                board,
+                                double_jump,
+                                promotion_moves,
+                            );
 
                             if let Some(mate) = check_for_mates(board) {
                                 // the player registering the move has just won
@@ -247,51 +258,24 @@ pub async fn handle_incoming_ws_message(
 
             if let Some(session_id) = session_id {
                 let mut session = sessions.write().await;
-    
+
                 // have to identify a different way of figuring out if the player doesn't exist
                 let res = session.reconnect_player(uuid_user_id, tx.clone());
-    
+
                 if let Some((color, board)) = res {
                     println!("trying to send a success message");
                     send_join_success(color, session_id, tx, board)
                 }
             }
-
-            // if let Some(session_id) = session_id {
-            //     let game = session.sessions.get(session_id).unwrap().clone();
-            //     let res =  session.reconnect_player(uuid_user_id, *session_id, tx.clone());
-            //     if let Some((color, board)) = res {
-            //         send_join_success(color, *session_id, &tx.clone(), &board);
-            //     }
-
-            // }
-
-            // if they do, put their new transmitter into the channels of the game
-            // they're currently in
-
-            // send them a "JoinGameSuccess"
         }
     }
-
-    // check if the user_id has previously connected on a different websocket
-    // let mut session = sessions.write().await;
-
-    // if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
-    //     if let Some(session_id) = session.players.get(&uuid_user_id) {
-    //         // if so, send join game success
-    //         let color = session.reconnect_player(uuid_user_id, *session_id, tx.clone());
-    //         send_join_success(color, *session_id, &tx.clone(), valid_session);
-    //     }
-
-    // }
-    // user_ids_on_websocket.insert(uuid_user_id);
 }
 
 fn send_join_success(
     color: PlayerColor,
     session_id: Uuid,
     tx: &mpsc::UnboundedSender<warp::ws::Message>,
-    board: &Board
+    board: &Board,
 ) {
     let message = OutgoingMessage::JoinGameSuccess {
         color: color,
@@ -307,10 +291,7 @@ fn send_join_success(
     }
 }
 
-fn send_board(
-    board: &Board,
-    tx: &mpsc::UnboundedSender<warp::ws::Message>,
-) {
+fn send_board(board: &Board, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
     let message = OutgoingMessage::BoardState { board: board };
     if let Ok(new_board_state) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(new_board_state)).unwrap();

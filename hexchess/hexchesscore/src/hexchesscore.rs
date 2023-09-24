@@ -197,23 +197,23 @@ pub fn get_valid_moves_without_checks(
     hexagon: &Hexagon,
     piece: &Piece,
     board: &Board,
-) -> (Vec<Hexagon>, Option<Hexagon>) {
+) -> (Vec<Hexagon>, Option<Hexagon>, Vec<Hexagon>) {
     // get valid pieces
     // check for friendly pieces blocking stuff
     // check for enemy pieces allowing captures
-    let (valid_moves, double_jump) = match piece.piece_type {
+    let (valid_moves, double_jump, promotion_moves) = match piece.piece_type {
         PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => (
             get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board),
-            None,
+            None, Vec::new()
         ),
         PieceType::Pawn => moves::pawn_moves(hexagon, &piece.color, board),
         PieceType::Knight => (
             get_valid_knight_moves(KnightMoves::new(hexagon), piece, board),
-            None,
+            None, Vec::new()
         ),
     };
 
-    (valid_moves, double_jump)
+    (valid_moves, double_jump, promotion_moves)
 }
 
 pub fn get_all_pieces_of_matching_color(color: Color, board: &Board) -> Vec<(Hexagon, Piece)> {
@@ -355,12 +355,12 @@ pub fn get_valid_moves(
     hexagon: &Hexagon,
     piece: &Piece,
     board: &mut Board,
-) -> (Vec<Hexagon>, Option<Hexagon>) {
-    let (mut valid_moves, double_jump) = get_valid_moves_without_checks(hexagon, piece, board);
+) -> (Vec<Hexagon>, Option<Hexagon>, Vec<Hexagon>) {
+    let (mut valid_moves, double_jump, promotion_moves) = get_valid_moves_without_checks(hexagon, piece, board);
     // validate the king is not in check for any of the moves
     // -> this in-place mutates the valid_moves vec
     check_moves_for_checks(&mut valid_moves,  hexagon, piece, board);
-    (valid_moves, double_jump)
+    (valid_moves, double_jump, promotion_moves)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -377,7 +377,7 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
 
     // Check if any of the player's pieces have a valid move
     for (start_hexagon, piece) in player_pieces {
-        let (valid_moves, _) = get_valid_moves(&start_hexagon, &piece, board);
+        let (valid_moves, _, _) = get_valid_moves(&start_hexagon, &piece, board);
 
         // If any valid move exists, the player is not in checkmate
         if !valid_moves.is_empty() {
@@ -416,6 +416,7 @@ pub fn register_move(
     final_hexagon: &Hexagon,
     board: &mut Board,
     double_jump: Option<Hexagon>,
+    promotion_moves: Vec<Hexagon>,
 ) -> Result<Color, HexChessError> {
     // If succesful, return the color of the player whose turn
     // it will now be.

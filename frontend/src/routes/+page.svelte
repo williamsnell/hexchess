@@ -11,11 +11,12 @@
 	import { draggable } from '@neodrag/svelte';
 	import { browser } from '$app/environment';
 	import { get_hexagon_position } from './get_hexagon_position.js';
- 
+
 	import pkg from 'lodash';
 	const { isEmpty, transform, isEqual, isArray, isObject } = pkg;
 
 	$: valid_moves = [];
+	$: promotion_moves = [];
 	$: board_w = 0;
 	$: board_h = 0;
 	$: session_id = 0;
@@ -42,10 +43,10 @@
 			// x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
 			// y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
 			x: board_w * (orient * x_fraction + 0.5 - 0.02) * 1.04,
-			y: board_h * (-orient * y_fraction - 0.5) 		
+			y: board_h * (-orient * y_fraction - 0.5)
 		};
 	}
- 
+
 	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
 		if (board_rotate == 'auto') {
 			if (player_color == 'White') {
@@ -120,12 +121,13 @@
 		const payload = JSON.parse(message.data);
 		if (payload.op == 'ValidMoves') {
 			valid_moves = payload.moves;
+			promotion_moves = payload.moves;
+			console.log(payload.promotion_moves);
 		} else if (payload.op == 'BoardState') {
 			current_player = payload.board.current_player;
-			// choose_orientation();
-
 			board.update(() => instantiate_pieces(payload.board));
 			valid_moves = [];
+			promotion_moves = [];
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
 			player_color = payload.color;
@@ -243,9 +245,13 @@
 		{/if}
 	</div>
 	<div bind:clientWidth={board_w} bind:clientHeight={board_h} class="board">
-		<img src="/assets/board.svg" alt="game board" style:display="block"
-		style:margin-left="-2%"
-		style:margin-right="-2%"/>
+		<img
+			src="/assets/board.svg"
+			alt="game board"
+			style:display="block"
+			style:margin-left="-2%"
+			style:margin-right="-2%"
+		/>
 		{#if !isEmpty(last_move)}
 			<span
 				use:draggable={{
@@ -297,8 +303,8 @@
 				style:position="absolute"
 				style:display="block"
 				style:width="{board_h * size}px"
-				style:left="-{0.5/11.3 * board_w}px"
-				style:bottom="{-0.5 / 11 * 100}%"
+				style:left="-{(0.5 / 11.3) * board_w}px"
+				style:bottom="{(-0.5 / 11) * 100}%"
 			>
 				<input
 					type="image"
