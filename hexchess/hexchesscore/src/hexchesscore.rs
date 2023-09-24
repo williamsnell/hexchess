@@ -26,7 +26,7 @@ impl Color {
     fn invert(&self) -> Color {
         match &self {
             Color::Black => Color::White,
-            Color::White => Color::Black
+            Color::White => Color::Black,
         }
     }
 }
@@ -204,12 +204,14 @@ pub fn get_valid_moves_without_checks(
     let (valid_moves, double_jump, promotion_moves) = match piece.piece_type {
         PieceType::Rook | PieceType::Queen | PieceType::Bishop | PieceType::King => (
             get_blocking_sliding_moves(SlidingMoves::new(&hexagon, &piece), piece, board),
-            None, Vec::new()
+            None,
+            Vec::new(),
         ),
         PieceType::Pawn => moves::pawn_moves(hexagon, &piece.color, board),
         PieceType::Knight => (
             get_valid_knight_moves(KnightMoves::new(hexagon), piece, board),
-            None, Vec::new()
+            None,
+            Vec::new(),
         ),
     };
 
@@ -356,17 +358,18 @@ pub fn get_valid_moves(
     piece: &Piece,
     board: &mut Board,
 ) -> (Vec<Hexagon>, Option<Hexagon>, Vec<Hexagon>) {
-    let (mut valid_moves, double_jump, promotion_moves) = get_valid_moves_without_checks(hexagon, piece, board);
+    let (mut valid_moves, double_jump, promotion_moves) =
+        get_valid_moves_without_checks(hexagon, piece, board);
     // validate the king is not in check for any of the moves
     // -> this in-place mutates the valid_moves vec
-    check_moves_for_checks(&mut valid_moves,  hexagon, piece, board);
+    check_moves_for_checks(&mut valid_moves, hexagon, piece, board);
     (valid_moves, double_jump, promotion_moves)
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mate {
     Checkmate,
-    Stalemate
+    Stalemate,
 }
 
 pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
@@ -392,7 +395,9 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
         .map(|(hex, _)| hex);
 
     if let Some(king_hex) = king_hex {
-        if let Some(attacking_pieces) = get_attacking_pieces(current_player_color.invert(), board, &king_hex) {
+        if let Some(attacking_pieces) =
+            get_attacking_pieces(current_player_color.invert(), board, &king_hex)
+        {
             if attacking_pieces.is_empty() {
                 // There are no attacking pieces, indicating a stalemate
                 return Some(Mate::Stalemate);
