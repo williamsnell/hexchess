@@ -29,7 +29,7 @@
 	$: orient = 1;
 	$: last_move = {};
 
-	let size = 0.25;
+	let size = 0.08;
 
 	function position_to_screenspace(
 		x_fraction: number,
@@ -39,11 +39,13 @@
 		orient: number
 	) {
 		return {
-			x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
-			y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
+			// x: board_w * (-orient * x_fraction * 0.974 - (1 - orient) * 0.442 + 0.938),
+			// y: (y_fraction * orient * -0.998 + (1 - orient) * -1.088 + 0.566) * board_h
+			x: board_w * (orient * x_fraction + 0.5),
+			y: board_h * (-orient * y_fraction - 0.5)			
 		};
 	}
-
+ 
 	function choose_orientation(player_color: string, current_player: string, board_rotate: string) {
 		if (board_rotate == 'auto') {
 			if (player_color == 'White') {
@@ -245,8 +247,8 @@
 			</button>
 		{/if}
 	</div>
-	<div bind:offsetWidth={board_w} bind:offsetHeight={board_h} class="board">
-		<img src="/assets/board.svg" alt="game board" />
+	<div bind:clientWidth={board_w} bind:clientHeight={board_h} class="board">
+		<img src="/assets/board.svg" alt="game board" style:display="block"/>
 		{#if !isEmpty(last_move)}
 			<span
 				use:draggable={{
@@ -263,19 +265,19 @@
 				style:display="block"
 				style:width="{board_w * 0.1}px"
 				style:height="{board_w * 0.1}px"
+				style:bottom="-3.8%"
 			>
 				<img
 					src="/assets/highlight.svg"
 					alt="highlighted hexagon"
 					style:position="relative"
-					style:left="{board_w * -0.055}px"
-					style:top="{board_w * -0.04}px"
+					style:left="{-board_w * 0.064}px"
 					style:width="{board_w * 0.1195}px"
 					style:height="{board_w * 0.1195}px"
 				/>
 			</span>
 		{/if}
-		{#each $board as { hex, position, img_src, alt }}
+		{#each $board as { hex, position, img_src: src, alt }}
 			<div
 				class="piece"
 				use:draggable={{
@@ -297,14 +299,17 @@
 					board.update((board) => board);
 				}}
 				style:position="absolute"
+				style:display="block"
+				style:width="{board_h * size}px"
+				style:left="-{0.5/11.3 * board_w}px"
+				style:bottom="{-0.5 / 11 * 100}%"
 			>
 				<input
 					type="image"
-					src={img_src}
-					style:position="relative"
-					style:left="{size * -0.48 * board_w}%"
-					style:margin-top="{-size * 0.34 * board_h}%"
-					style:width="{size * board_w}%"
+					style:display="block"
+					src="{src}#svgView(viewBox(3, 10, 39, 28))"
+					style:width="100%"
+					style:height="100%"
 					{alt}
 				/>
 			</div>
@@ -339,14 +344,13 @@
 				}}
 				style:position="absolute"
 				style:display="block"
-				style:width="{board_w * 0.1}px"
-				style:height="{board_w * 0.1}px"
 			>
 				<span
 					class="dot"
 					style:position="relative"
-					style:left="{-board_w * 0.015}px"
-					style:top="{board_w * 0.0}px"
+					style:display="block"
+					style:left="-45%"
+					style:top="-{board_w * 0.015}px"
 					style:width="{board_w * 0.03}px"
 					style:height="{board_w * 0.03}px"
 				/>
@@ -413,8 +417,7 @@
 		width: auto;
 		margin-left: auto;
 		margin-right: auto;
-		padding: -5%;
-		margin-bottom: 1rem;
+		border-style: solid;
 	}
 	.dot {
 		background-color: #a5a195;
