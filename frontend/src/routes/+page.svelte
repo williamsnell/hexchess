@@ -355,7 +355,7 @@
 					class="dot"
 					style:position="relative"
 					style:display="block"
-					style:left="35%"
+					style:left="40%"
 					style:top="35%"
 					style:width="{board_w * 0.03}px"
 					style:height="{board_w * 0.03}px"
