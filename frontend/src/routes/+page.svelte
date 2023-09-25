@@ -23,6 +23,9 @@
 	$: session_id = 0;
 	$: previous_board = [];
 
+	$: game_outcome = null;
+	$: game_end_reason = null;
+
 	$: player_color = 'Both';
 	$: current_player = 'White';
 
@@ -147,8 +150,11 @@
 		} else if (payload.op == 'JoinGameSuccess') {
 			session_id = payload.session;
 			player_color = payload.color;
+			game_end_reason = null;
+			game_outcome = null;
 		} else if (payload.op == 'GameEnded') {
-			console.log(`You ${payload.game_outcome} by ${payload.reason}!`);
+			game_outcome = payload.game_outcome;
+			game_end_reason = payload.reason;
 		}
 	}
 
@@ -410,6 +416,29 @@
 			</div>
 		</div>
 	{/if}
+	{#if game_end_reason != null}
+	<div
+			style:display="flex"
+			style:height="100%"
+			style:width="100%"
+			style:top="7rem"
+			style:left="0"
+			style:justify-content="center"
+			style:position="absolute"
+		>
+		<div class="end_screen">
+			<h1>
+				{game_outcome == "Won" ?  "Victory!" : game_outcome == "Lost" ? "Defeat :(" : game_outcome == "Drew" ? "Draw" : game_outcome}
+			</h1>
+			<h2>
+				{game_end_reason}
+
+			</h2>
+			<br>
+		</div>
+
+	</div>
+	{/if}
 	<div class="flip_button">
 		<button
 			class="flip_button"
@@ -527,7 +556,6 @@
 	.promotion_buttons {
 		position: absolute;
 		top: 7rem;
-		display: flex;
 		flex-direction: row;
 		height: 10%;
 		width: 50%;
@@ -537,10 +565,29 @@
 		align-items: center;
 		justify-content: center;
 		border: rgb(0, 0, 0);
-		border-width: 10px;
-		border-radius: 10px;
+		border-width: 5px;
 		border-style: solid;
 		background-color: #75757573;
 		backdrop-filter: blur(20px);
+	}
+	.end_screen {
+		position: absolute;
+		top: 7rem;
+		flex-direction: column;
+		height: 10%;
+		width: 50%;
+		margin-left: auto;
+		margin-right: auto;
+		padding: 10%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: rgb(0, 0, 0);
+		border-width: 5px;
+		border-style: solid;
+		background-color: rgb(100, 97, 143);
+		font-family: Arial, Helvetica, sans-serif;
+		font-weight: bolder;
+		color:rgb(8, 8, 8);
 	}
 </style>
