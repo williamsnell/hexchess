@@ -5,7 +5,8 @@
 		Board,
 		instantiate_pieces,
 		show_available_moves,
-		move_piece
+		move_piece,
+		promotion_pieces
 	} from './board_state.js';
 	import { Color, PieceType } from './hexchess_logic.js';
 	import { draggable } from '@neodrag/svelte';
@@ -23,7 +24,7 @@
 	$: previous_board = [];
 
 	$: player_color = 'Both';
-	$: current_player = '';
+	$: current_player = 'White';
 
 	$: board_rotate = 'auto';
 
@@ -114,6 +115,24 @@
 	}
 
 	$: $board, get_last_move(board);
+
+	$: promo_pieces = promotion_pieces(current_player);
+
+	$: promotion_window_open = false;
+	let promo_start, promo_end;
+
+	// function handle_promotions() {}
+
+	function handle_moves(selected_piece, move, user_id, socket_send, promotion_moves) {
+		if (promotion_moves.includes(move)) {
+			// do some promotion handling
+			promotion_window_open = true;
+			promo_start = selected_piece;
+			promo_end = move;
+		} else {
+			move_piece(selected_piece, move, user_id, socket_send);
+		}
+	}
 
 	function handle_incoming_message(message: MessageEvent) {
 		const payload = JSON.parse(message.data);
@@ -242,11 +261,7 @@
 		{/if}
 	</div>
 	<div bind:clientWidth={board_w} bind:clientHeight={board_h} class="board">
-		<img
-			src="/assets/board.svg"
-			alt="game board"
-			style:display="block"
-		/>
+		<img src="/assets/board.svg" alt="game board" style:display="block" />
 		{#if !isEmpty(last_move)}
 			<span
 				use:draggable={{
@@ -291,7 +306,7 @@
 				}}
 				on:neodrag:end={() => {
 					if (hover_hex) {
-						move_piece(hex, hover_hex, user_id, socket_send);
+						handle_moves(hex, hover_hex, user_id, socket_send, promotion_moves);
 					}
 					board.update((board) => board);
 				}}
@@ -335,7 +350,7 @@
 					hover_hex = null;
 				}}
 				on:click={() => {
-					move_piece(selected_piece, move, user_id, socket_send);
+					handle_moves(selected_piece, move, user_id, socket_send, promotion_moves);
 					hover_hex = null;
 					valid_moves = [];
 				}}
@@ -359,6 +374,26 @@
 			</span>
 		{/each}
 	</div>
+	{#if promotion_window_open}
+		<div class="promotion_buttons">
+			{#each Object.entries(promo_pieces) as [piece_name, piece]}
+				<div
+					use:draggable={{ disabled: true }}
+					on:click={(e) => {
+						move_piece(promo_start, promo_end, user_id, socket_send, piece_name);
+						promo_start = null;
+						promo_end = null;
+						promotion_window_open = false;
+					}}
+					style:width="{board_h * size}px"
+					style:margin-left="1%"
+					style:display="inline-block"
+				>
+					<input type="image" src={piece} style:width="100%" style:height="100%" alt={piece_name} />
+				</div>
+			{/each}
+		</div>
+	{/if}
 	<div class="flip_button">
 		<button
 			class="flip_button"
@@ -472,5 +507,22 @@
 		transition-duration: 0.5s;
 		display: flex;
 		align-items: center;
+	}
+	.promotion_buttons {
+		position: absolute;
+		width: 120%;
+		top: 7rem;
+		display: flex;
+		justify-content: center;
+		background-color: rgba(34, 34, 34, 0.89);
+		margin-left: -10%;
+		margin-right: auto;
+		padding-top: 10%;
+		padding-bottom: 10%;
+		border: rgb(0, 0, 0);
+		border-width: 10px;
+		border-radius: 10px;
+		border-style: solid;
+		backdrop-filter: blur(10px);
 	}
 </style>

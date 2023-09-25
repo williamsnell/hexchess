@@ -30,6 +30,16 @@ export function instantiate_pieces(board: Board) {
     return active_pieces;
 }
 
+export function promotion_pieces(color: Color) {
+    console.log(color)
+    const result = {};
+    for (const piece of ["Knight", "Bishop", "Rook", "Queen"]) {
+        result[piece] = get_piece_asset(color, piece);
+    }
+    console.log(color, result)
+    return result
+}
+
 export const board = writable(instantiate_pieces(board_json.board));
 
 export function show_available_moves(hexagon, user_id, socket_send) {
@@ -42,13 +52,20 @@ export function show_available_moves(hexagon, user_id, socket_send) {
       );
     }
 
-export function move_piece(start_hex, destination_hex, user_id, socket_send) {
+export function move_piece(start_hex, destination_hex, user_id, socket_send, promotion_choice=null) {
         // send a message to register a piece moving
+        console.log(          `{"op": "RegisterMove",
+        "user_id": "${user_id}",
+        "start_hexagon": "${start_hex}",
+        "final_hexagon": "${destination_hex}"
+        ${promotion_choice != null ? ', "promotion_choice: ' + promotion_choice : ""}
+        }`)
         socket_send(
           `{"op": "RegisterMove",
               "user_id": "${user_id}",
               "start_hexagon": "${start_hex}",
-              "final_hexagon": "${destination_hex}",
-              "promotion_choice": "Queen"}`
+              "final_hexagon": "${destination_hex}"
+              ${promotion_choice != null ? ', "promotion_choice": "' + promotion_choice + '"': ""}
+              }`
         );
       }
