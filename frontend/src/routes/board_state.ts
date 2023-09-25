@@ -54,12 +54,6 @@ export function show_available_moves(hexagon, user_id, socket_send) {
 
 export function move_piece(start_hex, destination_hex, user_id, socket_send, promotion_choice=null) {
         // send a message to register a piece moving
-        console.log(          `{"op": "RegisterMove",
-        "user_id": "${user_id}",
-        "start_hexagon": "${start_hex}",
-        "final_hexagon": "${destination_hex}"
-        ${promotion_choice != null ? ', "promotion_choice: ' + promotion_choice : ""}
-        }`)
         socket_send(
           `{"op": "RegisterMove",
               "user_id": "${user_id}",
