@@ -375,23 +375,39 @@
 		{/each}
 	</div>
 	{#if promotion_window_open}
-		<div class="promotion_buttons">
-			{#each Object.entries(promo_pieces) as [piece_name, piece]}
-				<div
-					use:draggable={{ disabled: true }}
-					on:click={(e) => {
-						move_piece(promo_start, promo_end, user_id, socket_send, piece_name);
-						promo_start = null;
-						promo_end = null;
-						promotion_window_open = false;
-					}}
-					style:width="{board_h * size}px"
-					style:margin-left="1%"
-					style:display="inline-block"
-				>
-					<input type="image" src={piece} style:width="100%" style:height="100%" alt={piece_name} />
-				</div>
-			{/each}
+		<div
+			style:display="flex"
+			style:height="100%"
+			style:width="100%"
+			style:top="0"
+			style:left="0"
+			style:justify-content="center"
+			style:position="absolute"
+		>
+			<div class="promotion_buttons">
+				{#each Object.entries(promo_pieces) as [piece_name, piece]}
+					<div
+						use:draggable={{ disabled: true }}
+						on:click={(e) => {
+							move_piece(promo_start, promo_end, user_id, socket_send, piece_name);
+							promo_start = null;
+							promo_end = null;
+							promotion_window_open = false;
+						}}
+						style:width="{board_h * size}px"
+						style:height=auto
+						style:display=inline-block
+					>
+						<input
+							type="image"
+							src={piece}
+							style:width="100%"
+							style:height="100%"
+							alt={piece_name}
+						/>
+					</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 	<div class="flip_button">
@@ -510,19 +526,21 @@
 	}
 	.promotion_buttons {
 		position: absolute;
-		width: 120%;
 		top: 7rem;
 		display: flex;
-		justify-content: center;
-		background-color: rgba(34, 34, 34, 0.89);
-		margin-left: -10%;
+		flex-direction: row;
+		height: 10%;
+		width: 50%;
+		margin-left: auto;
 		margin-right: auto;
-		padding-top: 10%;
-		padding-bottom: 10%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		border: rgb(0, 0, 0);
 		border-width: 10px;
 		border-radius: 10px;
 		border-style: solid;
+		background-color: rgba(34, 34, 34, 0.89);
 		backdrop-filter: blur(10px);
 	}
 </style>
