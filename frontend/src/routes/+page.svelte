@@ -540,7 +540,7 @@
 		border-width: 10px;
 		border-radius: 10px;
 		border-style: solid;
-		background-color: rgba(34, 34, 34, 0.89);
-		backdrop-filter: blur(10px);
+		background-color: #75757573;
+		backdrop-filter: blur(20px);
 	}
-</style>
+</style>100f11
