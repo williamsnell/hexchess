@@ -11,7 +11,7 @@ pub enum PlayerColor {
     Both
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PlayersPerGame {
     pub black: Option<PlayerID>,
     pub white: Option<PlayerID>,

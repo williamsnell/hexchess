@@ -37,6 +37,9 @@ pub enum IncomingMessage {
         user_id: String,
         hexagon: Hexagon,
     },
+    GetGameState {
+        user_id: String,
+    },
     RegisterMove {
         user_id: String,
         start_hexagon: Hexagon,
@@ -81,6 +84,9 @@ pub enum OutgoingMessage<'a> {
         game_outcome: GameOutcome,
         reason: GameEndReason,
     },
+    GameStatus {
+        game_started: bool
+    }
 }
 
 pub async fn handle_incoming_ws_message(
@@ -157,6 +163,27 @@ pub async fn handle_incoming_ws_message(
                 }
             }
             drop(session);
+        },
+        IncomingMessage::GetGameState { user_id } => {
+            uuid_user_id = Uuid::parse_str(&user_id).unwrap();
+            let mut session = sessions.write().await;
+
+            let maybe_session = session.get_mut_session_if_exists(uuid_user_id);
+
+            if let Some(valid_session) = maybe_session {
+                let outgoing;
+                if valid_session.players.black.is_some() & valid_session.players.white.is_some() {
+                    outgoing = OutgoingMessage::GameStatus {
+                        game_started: true
+                    }
+                } else {
+                    outgoing = OutgoingMessage::GameStatus {
+                        game_started: false
+                    }
+                }
+                tx.send(warp::ws::Message::text(
+                    serde_json::to_string(&outgoing).unwrap())).unwrap();
+            }
         }
         IncomingMessage::RegisterMove {
             user_id,
@@ -169,9 +196,9 @@ pub async fn handle_incoming_ws_message(
             let mut session = sessions.write().await;
 
             // check if it is the player's turn to make a move
-            let test = session.get_mut_session_if_exists(uuid_user_id);
+            let maybe_session = session.get_mut_session_if_exists(uuid_user_id);
 
-            if let Some(valid_session) = test {
+            if let Some(valid_session) = maybe_session {
                 let board = &mut valid_session.board;
                 // check this player really has the right to play the next move
                 if valid_session
