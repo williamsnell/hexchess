@@ -420,12 +420,9 @@
 					/>
 				</span>
 			{/each}
-		{:else}
+		{:else if session_id}
 			<div class="loading_text">
-				<h1>
-					Searching for an opponent
-				</h1>
-				<br />
+				Searching for an opponent
 			</div>
 		{/if}
 	</div>
@@ -515,7 +512,7 @@
 <style>
 	body {
 		background: rgb(66, 64, 92);
-		transition-duration: 0.6s;
+		transition-duration: 0.1s;
 	}
 	.top-bar {
 		display: flex;
@@ -661,10 +658,10 @@
 	.loading_text {
 		position: absolute;
 		top: 40%;
-		left: 25%;
+		left: 35%;
 		flex-direction: column;
-		width: 50%;
-		padding: 0%;
+		width: 20%;
+		padding: 5%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -672,19 +669,20 @@
 		border-width: 1px;
 		border-style: solid;
 		border-radius: 10px;
-		background-color: #75757573;
 		backdrop-filter: blur(20px);
 		font-family: Arial, Helvetica, sans-serif;
-		font-size: calc(min(0.8rem, 3vw));
-		color: rgb(0, 0, 0);
+		font-size: 1.5rem;
+		background-color: rgba(240, 248, 255, 0.425);
 		transition-duration: 0.6s;
 	}
 	@keyframes loading {
 		0% {
 			transform: rotate(0deg);
+			transform: rotate3d(1, 2, 1, 0deg);
 		}
 		100% {
 			transform: rotate(360deg);
+			transform: rotate3d(1, 2, 1, 360deg);
 		}
 	}
 </style>
