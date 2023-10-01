@@ -507,6 +507,8 @@
 			<p>{board_rotate}</p></button
 		>
 	</div>
+	<a href="https://commons.wikimedia.org/wiki/User:Cburnett" style:bottom=-1rem style:position=absolute style:color=black style:font-size=0.8rem>Piece images credit Cburnett under CC BY-SA 3.0</a>
+		
 </body>
 
 <style>
