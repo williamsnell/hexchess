@@ -12,6 +12,7 @@
 	import { draggable } from '@neodrag/svelte';
 	import { browser } from '$app/environment';
 	import { get_hexagon_position } from './get_hexagon_position.js';
+	import { flip } from 'svelte/animate';
 
 	import pkg from 'lodash';
 	const { isEmpty, transform, isEqual, isArray, isObject } = pkg;
@@ -25,6 +26,7 @@
 
 	$: game_outcome = null;
 	$: game_end_reason = null;
+	$: game_started = false;
 
 	$: player_color = 'Both';
 	$: current_player = 'White';
@@ -155,6 +157,8 @@
 		} else if (payload.op == 'GameEnded') {
 			game_outcome = payload.game_outcome;
 			game_end_reason = payload.reason;
+		} else if (payload.op == 'GameStatus') {
+			game_started = payload.game_started;
 		}
 	}
 
@@ -180,8 +184,9 @@
 					? 'ws://127.0.0.1:7878/ws'
 					: 'wss://playhexchess.com:443/ws';
 			const socket = new WebSocket(BACKEND_URL);
-			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) =>
+			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => {
 				socket.send(message);
+			};
 			socket.onmessage = (message) => handle_incoming_message(message);
 			socket.addEventListener('open', () => {
 				console.log('Socket Open');
@@ -196,7 +201,7 @@
 		}
 	}
 
-	const socket_send = setup_socket();
+	$: socket_send = setup_socket();
 
 	let user_id = '';
 
@@ -219,6 +224,38 @@
 
 	let hover_hex: string;
 	let selected_piece: string;
+
+	let querier = null;
+
+	function query_game_started(game_started) {
+		if (!game_started) {
+			querier = setInterval(
+				() => socket_send(`{"op": "GetGameState", "user_id": "${user_id}"}`),
+				200
+			);
+		} else {
+			clearInterval(querier);
+		}
+	}
+
+	$: query_game_started(game_started);
+
+	function start_singleplayer(socket_send, user_id) {
+		game_started = false;
+		socket_send(
+			`{"op": "CreateGame",
+					"user_id": "${user_id}",
+					"is_multiplayer": false}`
+		);
+	}
+
+	function start_multiplayer(socket_send, user_id) {
+		game_started = false;
+		socket_send(
+			`{"op": "JoinAnyGame",
+						"user_id": "${user_id}"}`
+		);
+	}
 </script>
 
 <title>Hexagonal Chessagonal</title>
@@ -242,10 +279,7 @@
 			<button
 				class="button"
 				style:height={session_id == 0 ? '4rem' : '2rem'}
-				on:click={socket_send(
-					`{"op": "JoinAnyGame",
-						"user_id": "${user_id}"}`
-				)}
+				on:click={start_multiplayer(socket_send, user_id)}
 				style:width={session_id == 0 ? '49%' : '8rem'}
 				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
@@ -254,11 +288,7 @@
 			<button
 				class="button"
 				style:height={session_id == 0 ? '4rem' : '2rem'}
-				on:click={socket_send(
-					`{"op": "CreateGame",
-					"user_id": "${user_id}",
-					"is_multiplayer": false}`
-				)}
+				on:click={start_singleplayer(socket_send, user_id)}
 				style:width={session_id == 0 ? '49%' : '8rem'}
 				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
@@ -266,119 +296,138 @@
 			</button>
 		{/if}
 	</div>
-	<div bind:clientWidth={board_w} bind:clientHeight={board_h} class="board">
-		<img src="/assets/board.svg" alt="game board" style:display="block" />
-		{#if !isEmpty(last_move)}
-			<span
-				use:draggable={{
-					position: position_to_screenspace(
-						get_hexagon_position(Object.keys(last_move)[0])[0],
-						get_hexagon_position(Object.keys(last_move)[0])[1],
-						board_w,
-						board_h,
-						orient
-					),
-					disabled: true
-				}}
-				style:position="absolute"
-				style:display="block"
-			>
-				<img
-					src="/assets/highlight.svg"
-					alt="highlighted hexagon"
-					style:position="relative"
-					style:display="block"
-					style:left="{-board_w * 0.061}px"
-					style:top="{-board_w * 0.06}px"
-					style:width="{board_w * 0.1195}px"
-					style:height="{board_w * 0.1195}px"
-				/>
-			</span>
-		{/if}
-		{#each $board as { hex, position, img_src: src, alt }}
-			<div
-				class="piece"
-				use:draggable={{
-					position: position_to_screenspace(position.x, position.y, board_w, board_h, orient)
-				}}
-				on:pointerdown={(e) => {
-					e.target.releasePointerCapture(e.pointerId);
-				}}
-				on:neodrag:start={() => {
-					{
-						selected_piece = hex;
-						show_available_moves(hex, user_id, socket_send);
-					}
-				}}
-				on:neodrag:end={() => {
-					if (hover_hex) {
-						handle_moves(hex, hover_hex, user_id, socket_send, promotion_moves);
-					}
-					board.update((board) => board);
-				}}
-				style:position="absolute"
-				style:display="block"
-				style:width="{board_h * size}px"
-				style:left="-{(0.5 / 11.3) * board_w}px"
-				style:bottom="{(-0.5 / 11) * 100}%"
-			>
-				<input
-					type="image"
-					style:display="block"
-					{src}
-					style:width="100%"
-					style:height="100%"
-					{alt}
-				/>
-			</div>
-		{/each}
-		<!-- draw the valid moves -->
-		{#each valid_moves as move}
-			<!-- svelte-ignore a11y-no-static-element-interactions -->
-			<!-- svelte-ignore a11y-click-events-have-key-events -->
-			<!-- svelte-ignore a11y-mouse-events-have-key-events -->
-			<span
-				style:touch-action="none"
-				use:draggable={{
-					position: position_to_screenspace(
-						get_hexagon_position(move)[0],
-						get_hexagon_position(move)[1],
-						board_w,
-						board_h,
-						orient
-					),
-					disabled: true
-				}}
-				on:pointerenter={() => {
-					hover_hex = move;
-				}}
-				on:pointerleave={() => {
-					hover_hex = null;
-				}}
-				on:click={() => {
-					handle_moves(selected_piece, move, user_id, socket_send, promotion_moves);
-					hover_hex = null;
-					valid_moves = [];
-				}}
-				style:position="absolute"
-				style:display="block"
-				style:width="9%"
-				style:height="8.5%"
-				style:left="-4.75%"
-				style:bottom="-4.5%"
-				style:border-radius="50%"
-			>
+	<div
+		bind:clientWidth={board_w}
+		bind:clientHeight={board_h}
+		class=board
+	>
+		<img
+			src="/assets/board.svg"
+			alt="game board"
+			class={session_id && !game_started ? 'board_spinning' : ""}
+			style:display="block"
+			style:rotate={orient == 1 ? "0deg" : "180deg"}
+		/>
+		{#if game_started}
+			{#if !isEmpty(last_move)}
 				<span
-					class="dot"
-					style:position="relative"
+					use:draggable={{
+						position: position_to_screenspace(
+							get_hexagon_position(Object.keys(last_move)[0])[0],
+							get_hexagon_position(Object.keys(last_move)[0])[1],
+							board_w,
+							board_h,
+							orient
+						),
+						disabled: true
+					}}
+					style:position="absolute"
 					style:display="block"
-					style:left="40%"
-					style:top="35%"
-					style:width="{board_w * 0.03}px"
-					style:height="{board_w * 0.03}px"
-				/>
-			</span>
-		{/each}
+				>
+					<img
+						src="/assets/highlight.svg"
+						alt="highlighted hexagon"
+						style:position="relative"
+						style:display="block"
+						style:left="{-board_w * 0.061}px"
+						style:top="{-board_w * 0.06}px"
+						style:width="{board_w * 0.1195}px"
+						style:height="{board_w * 0.1195}px"
+					/>
+				</span>
+			{/if}
+			{#each $board as { hex, position, img_src: src, alt }}
+				<div
+					class="piece"
+					use:draggable={{
+						position: position_to_screenspace(position.x, position.y, board_w, board_h, orient)
+					}}
+					on:pointerdown={(e) => {
+						e.target.releasePointerCapture(e.pointerId);
+					}}
+					on:neodrag:start={() => {
+						{
+							selected_piece = hex;
+							show_available_moves(hex, user_id, socket_send);
+						}
+					}}
+					on:neodrag:end={() => {
+						if (hover_hex) {
+							handle_moves(hex, hover_hex, user_id, socket_send, promotion_moves);
+						}
+						board.update((board) => board);
+					}}
+					style:position="absolute"
+					style:display="block"
+					style:width="{board_h * size}px"
+					style:left="-{(0.5 / 11.3) * board_w}px"
+					style:bottom="{(-0.5 / 11) * 100}%"
+				>
+					<input
+						type="image"
+						style:display="block"
+						{src}
+						style:width="100%"
+						style:height="100%"
+						{alt}
+					/>
+				</div>
+			{/each}
+			<!-- draw the valid moves -->
+			{#each valid_moves as move}
+				<!-- svelte-ignore a11y-no-static-element-interactions -->
+				<!-- svelte-ignore a11y-click-events-have-key-events -->
+				<!-- svelte-ignore a11y-mouse-events-have-key-events -->
+				<span
+					style:touch-action="none"
+					use:draggable={{
+						position: position_to_screenspace(
+							get_hexagon_position(move)[0],
+							get_hexagon_position(move)[1],
+							board_w,
+							board_h,
+							orient
+						),
+						disabled: true
+					}}
+					on:pointerenter={() => {
+						hover_hex = move;
+					}}
+					on:pointerleave={() => {
+						hover_hex = null;
+					}}
+					on:click={() => {
+						handle_moves(selected_piece, move, user_id, socket_send, promotion_moves);
+						hover_hex = null;
+						valid_moves = [];
+					}}
+					style:position="absolute"
+					style:display="block"
+					style:width="9%"
+					style:height="8.5%"
+					style:left="-4.75%"
+					style:bottom="-4.5%"
+					style:border-radius="50%"
+				>
+					<span
+						class="dot"
+						style:position="relative"
+						style:display="block"
+						style:left="40%"
+						style:top="35%"
+						style:width="{board_w * 0.03}px"
+						style:height="{board_w * 0.03}px"
+					/>
+				</span>
+			{/each}
+		{:else}
+			<div class="loading_text">
+				<h1>
+					Searching for an opponent
+				</h1>
+				<br />
+			</div>
+		{/if}
 	</div>
 	{#if promotion_window_open}
 		<div
@@ -401,8 +450,8 @@
 							promotion_window_open = false;
 						}}
 						style:width="{board_h * size}px"
-						style:height=auto
-						style:display=inline-block
+						style:height="auto"
+						style:display="inline-block"
 					>
 						<input
 							type="image"
@@ -417,7 +466,7 @@
 		</div>
 	{/if}
 	{#if game_end_reason != null}
-	<div
+		<div
 			style:display="flex"
 			style:height="100%"
 			style:width="100%"
@@ -426,18 +475,22 @@
 			style:justify-content="center"
 			style:position="absolute"
 		>
-		<div class="end_screen">
-			<h1>
-				{game_outcome == "Won" ?  "Victory!" : game_outcome == "Lost" ? "Defeat :(" : game_outcome == "Drew" ? "Draw" : game_outcome}
-			</h1>
-			<h2>
-				{game_end_reason}
-
-			</h2>
-			<br>
+			<div class="end_screen">
+				<h1>
+					{game_outcome == 'Won'
+						? 'Victory!'
+						: game_outcome == 'Lost'
+						? 'Defeat :('
+						: game_outcome == 'Drew'
+						? 'Draw'
+						: game_outcome}
+				</h1>
+				<h2>
+					{game_end_reason}
+				</h2>
+				<br />
+			</div>
 		</div>
-
-	</div>
 	{/if}
 	<div class="flip_button">
 		<button
@@ -462,6 +515,7 @@
 <style>
 	body {
 		background: rgb(66, 64, 92);
+		transition-duration: 0.6s;
 	}
 	.top-bar {
 		display: flex;
@@ -499,6 +553,20 @@
 		width: auto;
 		margin-left: auto;
 		margin-right: auto;
+		transition-duration: 0.6s;
+	}
+	.board_spinning {
+		max-height: 120vw;
+		max-width: calc(89vh - 12rem);
+		height: auto;
+		width: auto;
+		margin-left: auto;
+		margin-right: auto;
+		margin-top: auto;
+		margin-bottom: auto;
+		animation: loading 5s linear infinite;
+		scale: 60%;
+		transition-duration: 0.6s;
 	}
 	.dot {
 		background-color: #a5a195;
@@ -565,7 +633,7 @@
 		align-items: center;
 		justify-content: center;
 		border: rgb(0, 0, 0);
-		border-width: 5px;
+		border-width: 1px;
 		border-style: solid;
 		background-color: #75757573;
 		backdrop-filter: blur(20px);
@@ -574,7 +642,7 @@
 		position: absolute;
 		top: 7rem;
 		flex-direction: column;
-		height: 10%;
+		height: 0rem;
 		width: 50%;
 		margin-left: auto;
 		margin-right: auto;
@@ -582,12 +650,41 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: rgb(0, 0, 0);
-		border-width: 5px;
+		border-width: 1px;
 		border-style: solid;
-		background-color: rgb(100, 97, 143);
+		background-color: #75757573;
+		backdrop-filter: blur(20px);
 		font-family: Arial, Helvetica, sans-serif;
 		font-weight: bolder;
-		color:rgb(8, 8, 8);
+		color: rgb(8, 8, 8);
+	}
+	.loading_text {
+		position: absolute;
+		top: 40%;
+		left: 25%;
+		flex-direction: column;
+		width: 50%;
+		padding: 0%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		border-width: 1px;
+		border-style: solid;
+		border-radius: 10px;
+		background-color: #75757573;
+		backdrop-filter: blur(20px);
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: calc(min(0.8rem, 3vw));
+		color: rgb(0, 0, 0);
+		transition-duration: 0.6s;
+	}
+	@keyframes loading {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
 	}
 </style>
