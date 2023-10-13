@@ -379,7 +379,7 @@ pub fn get_valid_moves(
     (valid_moves, double_jump, promotion_moves)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Move {
     pub start_hex: Hexagon,
     pub final_hex: Hexagon,
