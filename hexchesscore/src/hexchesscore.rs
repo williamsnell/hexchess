@@ -135,6 +135,8 @@ impl<'de> Deserialize<'de> for Hexagon {
     }
 }
 
+const DEFAULT_BOARD: &str = include_str!("./starting_moves.json");
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
@@ -142,12 +144,11 @@ pub struct Board {
     pub current_player: Color,
 }
 
+
 impl Board {
     pub fn setup_default_board() -> Board {
-        let path = PathBuf::from("./server_files/starting_moves.json");
-        let data = fs::read_to_string(path).expect("unable to read file");
         let moves: HashMap<Hexagon, Piece> =
-            serde_json::from_str(&data).expect("Invalid JSON format");
+            serde_json::from_str(&DEFAULT_BOARD).expect("Invalid JSON format");
         Board {
             occupied_squares: moves,
             en_passant: None,
@@ -193,7 +194,7 @@ fn get_valid_knight_moves(moves: moves::KnightMoves, piece: &Piece, board: &Boar
     valid_moves
 }
 
-pub fn get_valid_moves_without_checks(
+fn get_valid_moves_without_checks(
     hexagon: &Hexagon,
     piece: &Piece,
     board: &Board,
@@ -353,17 +354,71 @@ pub fn check_moves_for_checks(
     board.occupied_squares.insert(*hexagon, *piece);
 }
 
+/// From a given starting hexagon, give all the valid
+/// moves that a piece (which might be located there) has.
+/// If a piece isn't located there, there will be no valid
+/// moves.
 pub fn get_valid_moves(
     hexagon: &Hexagon,
-    piece: &Piece,
     board: &mut Board,
 ) -> (Vec<Hexagon>, Option<Hexagon>, Vec<Hexagon>) {
-    let (mut valid_moves, double_jump, promotion_moves) =
-        get_valid_moves_without_checks(hexagon, piece, board);
-    // validate the king is not in check for any of the moves
-    // -> this in-place mutates the valid_moves vec
-    check_moves_for_checks(&mut valid_moves, hexagon, piece, board);
+    let mut valid_moves;
+    let double_jump;
+    let promotion_moves;
+    // check that the piece
+    if let Some(piece) = board.occupied_squares.get(&hexagon).cloned() {
+        (valid_moves, double_jump, promotion_moves) =
+            get_valid_moves_without_checks(hexagon, &piece, board);
+        // validate the king is not in check for any of the moves
+        // -> this in-place mutates the valid_moves vec
+        check_moves_for_checks(&mut valid_moves, hexagon, &piece, board);
+    } else {
+        (valid_moves, double_jump, promotion_moves) =
+            (Vec::<Hexagon>::new(), None, Vec::<Hexagon>::new());
+    }
     (valid_moves, double_jump, promotion_moves)
+}
+
+#[derive(Debug)]
+pub struct Move {
+    pub start_hex: Hexagon,
+    pub final_hex: Hexagon,
+    pub final_piece: PieceType,
+}
+
+pub fn get_all_valid_moves(board: &mut Board) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    for (starting_hex, moving_piece) in
+        get_all_pieces_of_matching_color(board.current_player, board)
+    {
+        let (valid_moves, _double_jump, promotion_moves) = get_valid_moves(&starting_hex, board);
+        for final_hex in valid_moves {
+            // check if we're trying to promote
+            if promotion_moves.contains(&final_hex)
+                && matches!(moving_piece.piece_type, PieceType::Pawn)
+            {
+                for piece_type in [
+                    PieceType::Bishop,
+                    PieceType::Knight,
+                    PieceType::Rook,
+                    PieceType::Queen,
+                ] {
+                    moves.push(Move {
+                        start_hex: starting_hex,
+                        final_hex: final_hex,
+                        final_piece: piece_type,
+                    })
+                }
+            } else {
+                moves.push(Move {
+                    start_hex: starting_hex,
+                    final_hex: final_hex,
+                    final_piece: moving_piece.piece_type,
+                })
+            }
+        }
+    }
+    moves
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -379,8 +434,8 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
     let player_pieces = get_all_pieces_of_matching_color(current_player_color, board);
 
     // Check if any of the player's pieces have a valid move
-    for (start_hexagon, piece) in player_pieces {
-        let (valid_moves, _, _) = get_valid_moves(&start_hexagon, &piece, board);
+    for (start_hexagon, _piece) in player_pieces {
+        let (valid_moves, _, _) = get_valid_moves(&start_hexagon, board);
 
         // If any valid move exists, the player is not in checkmate
         if !valid_moves.is_empty() {
@@ -436,19 +491,27 @@ pub fn register_move(
     // try remove the moving piece from the old hex
     match board.occupied_squares.remove(&start_hexagon) {
         Some(piece) => {
-            // check if we're trying to promote           
-            if matches!(piece.piece_type, PieceType::Pawn) && promotion_moves.contains(final_hexagon) {
-                if promotion_choice.is_some() && !matches!(promotion_choice.unwrap(), PieceType::Pawn) {
+            // check if we're trying to promote
+            if matches!(piece.piece_type, PieceType::Pawn)
+                && promotion_moves.contains(final_hexagon)
+            {
+                if promotion_choice.is_some()
+                    && !matches!(promotion_choice.unwrap(), PieceType::Pawn | PieceType::King)
+                {
                     // make sure a promotion choice has been selected and it isn't a pawn
-                    let newly_created_piece = Piece{piece_type: promotion_choice.unwrap(), color: moving_color};
-                    board.occupied_squares.insert(*final_hexagon, newly_created_piece);
-                }
-                else {
+                    // or a king
+                    let newly_created_piece = Piece {
+                        piece_type: promotion_choice.unwrap(),
+                        color: moving_color,
+                    };
+                    board
+                        .occupied_squares
+                        .insert(*final_hexagon, newly_created_piece);
+                } else {
                     board.occupied_squares.insert(*start_hexagon, piece);
-                    return Err(HexChessError::FailedToRegisterMove)
+                    return Err(HexChessError::FailedToRegisterMove);
                 }
-            }
-            else {
+            } else {
                 // try insert the moving piece in the new hex
                 match board.occupied_squares.insert(*final_hexagon, piece) {
                     Some(_) => {}
@@ -459,7 +522,7 @@ pub fn register_move(
                         holy_hell(board, final_hexagon, valid_player);
                     }
                 };
-    
+
                 // If a pawn has double jumped, then we need to register it as
                 // the latest en-passant. On the other hand, if there was no
                 // double jump, the latest en-passant will be None

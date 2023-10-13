@@ -143,22 +143,18 @@ pub async fn handle_incoming_ws_message(
             let mut session = sessions.write().await;
 
             if let Some(valid_session) = session.get_mut_session_if_exists(uuid_user_id) {
-                // try and process the move
-                if let Some(piece) = valid_session.board.occupied_squares.get(&hexagon).cloned() {
-                    // match piece type to valid moves
-                    let (moves, _, promotion_moves) =
-                        get_valid_moves(&hexagon, &piece, &mut valid_session.board);
+                let (moves, _, promotion_moves) =
+                    get_valid_moves(&hexagon,  &mut valid_session.board);
 
-                    let outgoing = OutgoingMessage::ValidMoves {
-                        moves: &moves,
-                        promotion_moves: &promotion_moves,
-                    };
-                    tx.send(warp::ws::Message::text(
-                        serde_json::to_string(&outgoing).unwrap(),
-                    ))
-                    .unwrap();
+                let outgoing = OutgoingMessage::ValidMoves {
+                    moves: &moves,
+                    promotion_moves: &promotion_moves,
+                };
+                tx.send(warp::ws::Message::text(
+                    serde_json::to_string(&outgoing).unwrap(),
+                ))
+                .unwrap();
                 }
-            }
             drop(session);
         },
         IncomingMessage::GetGameState { user_id } => {
@@ -203,53 +199,51 @@ pub async fn handle_incoming_ws_message(
                     .check_color(uuid_user_id, board.current_player)
                 {
                     // try and process the move
-                    if let Some(piece) = board.occupied_squares.get(&start_hexagon).cloned() {
-                        // match piece type to valid moves
-                        let (moves, double_jump, promotion_moves) =
-                            get_valid_moves(&start_hexagon, &piece, board);
+                    // match piece type to valid moves
+                    let (moves, double_jump, promotion_moves) =
+                        get_valid_moves(&start_hexagon, board);
 
-                        if moves.contains(&final_hexagon) {
-                            let _ = register_move(
-                                &start_hexagon,
-                                &final_hexagon,
-                                board,
-                                double_jump,
-                                promotion_moves,
-                                promotion_choice,
+                    if moves.contains(&final_hexagon) {
+                        let _ = register_move(
+                            &start_hexagon,
+                            &final_hexagon,
+                            board,
+                            double_jump,
+                            promotion_moves,
+                            promotion_choice,
+                        );
+
+                        if let Some(mate) = check_for_mates(board) {
+                            // the player registering the move has just won
+
+                            // send a win message to the player
+                            send_game_end(
+                                Some(mate),
+                                true,
+                                valid_session.channels.get(&uuid_user_id).expect(
+                                    "No channels
+                            to communicate with the player who sent this move in!",
+                                ),
                             );
 
-                            if let Some(mate) = check_for_mates(board) {
-                                // the player registering the move has just won
+                            // send a lose message to the opponent
+                            let loser_channel =
+                                valid_session.channels.iter().find_map(|(player, channel)| {
+                                    if player != &uuid_user_id {
+                                        Some(channel)
+                                    } else {
+                                        None
+                                    }
+                                });
 
-                                // send a win message to the player
-                                send_game_end(
-                                    Some(mate),
-                                    true,
-                                    valid_session.channels.get(&uuid_user_id).expect(
-                                        "No channels
-                                to communicate with the player who sent this move in!",
-                                    ),
-                                );
-
-                                // send a lose message to the opponent
-                                let loser_channel =
-                                    valid_session.channels.iter().find_map(|(player, channel)| {
-                                        if player != &uuid_user_id {
-                                            Some(channel)
-                                        } else {
-                                            None
-                                        }
-                                    });
-
-                                if loser_channel.is_some() {
-                                    send_game_end(Some(mate), false, loser_channel.unwrap());
-                                }
+                            if loser_channel.is_some() {
+                                send_game_end(Some(mate), false, loser_channel.unwrap());
                             }
+                        }
 
-                            // TODO broadcast an update to both the players
-                            for (_, transmitter) in &valid_session.channels {
-                                send_board(&valid_session.board, transmitter);
-                            }
+                        // TODO broadcast an update to both the players
+                        for (_, transmitter) in &valid_session.channels {
+                            send_board(&valid_session.board, transmitter);
                         }
                     }
                 }
