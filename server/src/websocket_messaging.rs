@@ -6,8 +6,6 @@ use tokio::sync::{mpsc, RwLock};
 
 use std::sync::Arc;
 
-use std::collections::HashSet;
-
 use warp::ws::Message;
 
 use crate::session_handling::{self, PlayerColor};
@@ -93,7 +91,6 @@ pub async fn handle_incoming_ws_message(
     message: Message,
     sessions: &Arc<RwLock<session_handling::SessionHandler>>,
     tx: &mpsc::UnboundedSender<Message>,
-    user_ids_on_websocket: &mut HashSet<Uuid>,
 ) {
     let decoded: IncomingMessage = serde_json::from_str(message.to_str().unwrap()).unwrap();
 

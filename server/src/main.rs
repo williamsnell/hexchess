@@ -2,8 +2,6 @@
 use futures::{SinkExt, StreamExt, TryFutureExt};
 
 use server::{session_handling, websocket_messaging};
-use uuid::Uuid;
-use std::collections::HashSet;
 use std::sync::Arc;
 use tokio;
 use tokio::sync::{mpsc, RwLock};
@@ -26,7 +24,6 @@ async fn handle_websocket_async(
     // turn the normal receiver into a stream
     let mut rx = UnboundedReceiverStream::new(rx);
     
-    let mut user_ids_on_websocket = HashSet::<Uuid>::new();
     // spawn a task that will do the sending for us
     tokio::task::spawn(async move {
         while let Some(message) = rx.next().await {
@@ -50,7 +47,7 @@ async fn handle_websocket_async(
             }
         };
         if message.is_text() {
-            websocket_messaging::handle_incoming_ws_message(message, &sessions, &tx, &mut user_ids_on_websocket).await;
+            websocket_messaging::handle_incoming_ws_message(message, &sessions, &tx).await;
         }
     }
 
