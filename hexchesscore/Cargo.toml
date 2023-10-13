@@ -1,9 +1,12 @@
 [package]
-name = "hexchess"
+name = "hexchesscore"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hexchesscore = { path = "./hexchesscore"}
+serde = {version = "1.0.175", features = ["derive"] }
+serde_json = "1.0.103"
+
+[dev-dependencies]
