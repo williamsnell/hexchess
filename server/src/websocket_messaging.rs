@@ -60,15 +60,15 @@ pub enum IncomingMessage {
     },
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "op")]
-pub enum OutgoingMessage<'a> {
+pub enum OutgoingMessage {
     ValidMoves {
-        moves: &'a Vec<Hexagon>,
-        promotion_moves: &'a Vec<Hexagon>,
+        moves: Vec<Hexagon>,
+        promotion_moves: Vec<Hexagon>,
     },
     BoardState {
-        board: &'a Board,
+        board: Board,
     },
     JoinGameSuccess {
         color: PlayerColor,
@@ -147,8 +147,8 @@ pub async fn handle_incoming_ws_message(
                     get_valid_moves(&hexagon,  &mut valid_session.board);
 
                 let outgoing = OutgoingMessage::ValidMoves {
-                    moves: &moves,
-                    promotion_moves: &promotion_moves,
+                    moves: moves,
+                    promotion_moves: promotion_moves,
                 };
                 tx.send(warp::ws::Message::text(
                     serde_json::to_string(&outgoing).unwrap(),
@@ -212,7 +212,7 @@ pub async fn handle_incoming_ws_message(
                             promotion_moves,
                             promotion_choice,
                         );
-
+                        // if the game has ended, send some ending messages
                         if let Some(mate) = check_for_mates(board) {
                             // the player registering the move has just won
 
@@ -241,7 +241,7 @@ pub async fn handle_incoming_ws_message(
                             }
                         }
 
-                        // TODO broadcast an update to both the players
+                        // broadcast an update to both the players
                         for (_, transmitter) in &valid_session.channels {
                             send_board(&valid_session.board, transmitter);
                         }
@@ -311,7 +311,7 @@ fn send_join_success(
 }
 
 fn send_board(board: &Board, tx: &mpsc::UnboundedSender<warp::ws::Message>) {
-    let message = OutgoingMessage::BoardState { board: board };
+    let message = OutgoingMessage::BoardState { board: board.clone() };
     if let Ok(new_board_state) = serde_json::to_string(&message) {
         tx.send(warp::ws::Message::text(new_board_state)).unwrap();
     } else {

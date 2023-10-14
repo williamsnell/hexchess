@@ -137,7 +137,7 @@ impl<'de> Deserialize<'de> for Hexagon {
 
 const DEFAULT_BOARD: &str = include_str!("./starting_moves.json");
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Board {
     pub occupied_squares: HashMap<Hexagon, Piece>,
     pub en_passant: Option<Hexagon>,
