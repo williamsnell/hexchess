@@ -168,14 +168,19 @@ impl SessionHandler {
         // Add a player to a game. If they have other active games,
         // delete them.
         match self.players.insert(user_id, session_id) {
-            Some(session_id) => self.delete_session(session_id),
+            Some(session_id) => self.delete_session(user_id, session_id),
             None => ()
         }
     }
 
-    pub fn delete_session(&mut self, session_id: SessionID) {
-        // delete the session
-        self.sessions.remove(&session_id);
+    pub fn delete_session(&mut self, user_id: PlayerID, session_id: SessionID) {
+        // the player who asks to delete the game implicitly resigns
+        let session = self.sessions.get(&session_id);
+        if let Some(valid_session) = session {
+            send_resignation(user_id, &valid_session.channels);
+            // delete the session
+            self.sessions.remove(&session_id);
+        }
         // also, delete the session if it is in the joinable sessions vec
         self.joinable_sessions.retain(|val| val != &session_id);
     }
@@ -241,8 +246,15 @@ impl SessionHandler {
     pub fn delete_player(&mut self, user_id: PlayerID) {
         let game = self.players.remove(&user_id);
         match game {
-            Some(session_id) => {self.delete_session(session_id);},
+            Some(session_id) => {self.delete_session(user_id, session_id);},
             None => ()
         };
+    }
+}
+
+// TODO this is a really hacky way of killing bots for the moment
+pub fn send_resignation(initiating_player: PlayerID, channels: &HashMap<PlayerID, tokio::sync::mpsc::UnboundedSender<Message>>) {
+    for channel in channels.values() {
+        let _ = channel.send(warp::ws::Message::text("{{\"op\"= \"GameEnded\"}}"));
     }
 }
