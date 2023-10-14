@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use tokio::sync::{mpsc, RwLock};
 
-use std::sync::Arc;
+use std::{sync::Arc, process::Command};
 
 use warp::ws::Message;
 
@@ -105,8 +105,15 @@ pub async fn handle_incoming_ws_message(
 
             let mut session = sessions.write().await;
 
+            let multiplayer = true;
+
+            if !is_multiplayer {
+                // spawn a bot
+                Command::new("../bumblebot/target/release/bumblebot").spawn().expect("failed to spawn bot");
+            }
+
             let (session_id, session, color) =
-                session.add_session(uuid_user_id, is_multiplayer, false, tx.clone());
+                session.add_session(uuid_user_id, multiplayer, false, tx.clone());
 
             send_join_success(color, session_id, tx, &session.board);
         }
