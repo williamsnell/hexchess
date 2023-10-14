@@ -1,6 +1,6 @@
 use std::net::TcpStream;
 
-use hexchesscore::{get_all_valid_moves, Board, Move};
+use hexchesscore::{get_all_valid_moves, Board, Color, Move};
 use rand::{self, Rng};
 
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
@@ -12,31 +12,51 @@ use server::{
     websocket_messaging::{IncomingMessage, OutgoingMessage},
 };
 
+fn match_player_color(color: PlayerColor) -> Color {
+    dbg!(color);
+    match color {
+        PlayerColor::Black => Color::Black,
+        PlayerColor::White => Color::White,
+        PlayerColor::Both => {
+            panic!("the bot is fighting.... itself????")
+        }
+    }
+}
+
 fn handle_message(
     message: Message,
     user_id: Uuid,
-    mut session_id: Uuid,
-    mut current_color: PlayerColor,
+    current_color: &mut Color,
     socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
 ) {
     let decoded: OutgoingMessage = serde_json::from_str(&message.into_text().unwrap()).unwrap();
     dbg!(&decoded);
     match decoded {
         OutgoingMessage::JoinGameSuccess { color, session } => {
-            session_id = Uuid::parse_str(&session).unwrap().clone();
-            current_color = color;
+            *current_color = match_player_color(color);
+        }
+        OutgoingMessage::OpponentJoined { session: _ } => {
+            println!("here");
+            let _ = socket.send(Message::Text(
+                serde_json::to_string(&IncomingMessage::GetBoard {
+                    user_id: user_id.to_string(),
+                })
+                .unwrap(),
+            ));
         }
         OutgoingMessage::BoardState { mut board } => {
-            if matches!(board.current_player, current_color) {
+            if board.current_player == *current_color {
                 let intended_move = make_a_move(&mut board);
-                socket.send(Message::Text(
+                println!("here");
+                let _ = socket.send(Message::Text(
                     serde_json::to_string(&IncomingMessage::RegisterMove {
                         user_id: user_id.to_string(),
                         start_hexagon: intended_move.start_hex,
                         final_hexagon: intended_move.final_hex,
                         // TODO fix the behaviour around promotions
                         promotion_choice: None,
-                    }).unwrap()
+                    })
+                    .unwrap(),
                 ));
             }
         }
@@ -54,21 +74,22 @@ fn main() {
 
     let user_id = Uuid::new_v4();
 
-    let message = IncomingMessage::JoinAnyGame { user_id: user_id.to_string()};
+    let message = IncomingMessage::JoinAnyGame {
+        user_id: user_id.to_string(),
+    };
 
-    socket.send(Message::Text(serde_json::to_string(&message).expect("Couldn't serialize message")));
 
     // initialize the session_id with something useless
-    let mut session_id = Uuid::new_v4();
-    let mut current_color = PlayerColor::Black;
+    let mut current_color = Color::Black;
+
+    socket.send(Message::Text(
+        serde_json::to_string(&message).expect("Couldn't serialize message"),
+    ));
 
     loop {
         let msg = socket.read().expect("Error reading WS message");
-        handle_message(msg, user_id, session_id, current_color, &mut socket);
+        handle_message(msg, user_id, &mut current_color, &mut socket);
     }
-
-    let mut board = Board::setup_default_board();
-    dbg!(make_a_move(&mut board));
 }
 
 fn make_a_move(board: &mut Board) -> Move {
