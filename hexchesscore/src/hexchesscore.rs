@@ -23,7 +23,7 @@ pub enum Color {
 }
 
 impl Color {
-    fn invert(&self) -> Color {
+    pub fn invert(&self) -> Color {
         match &self {
             Color::Black => Color::White,
             Color::White => Color::Black,
