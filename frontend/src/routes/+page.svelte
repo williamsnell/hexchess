@@ -292,7 +292,7 @@
 				style:width={session_id == 0 ? '49%' : '8rem'}
 				style:font-size={session_id == 0 ? '1.5rem' : '1rem'}
 			>
-				Singleplayer
+				Vs BumbleBot
 			</button>
 		{/if}
 	</div>

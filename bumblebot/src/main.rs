@@ -1,4 +1,4 @@
-use std::net::TcpStream;
+use std::{net::TcpStream, env};
 
 use hexchesscore::{get_all_valid_moves, Board, Color, Move};
 use rand::{self, Rng};
@@ -63,13 +63,17 @@ fn handle_message(
 fn main() {
     // spool up a bot that will respond to a board state with its
     // suggested move
+    let args: Vec<String> = env::args().collect();
+    dbg!(&args);
+    
     let (mut socket, response) =
         connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
 
     let user_id = Uuid::new_v4();
 
-    let message = IncomingMessage::JoinAnyGame {
+    let message = IncomingMessage::JoinGame {
         user_id: user_id.to_string(),
+        game_id: args[1].to_string()
     };
 
 

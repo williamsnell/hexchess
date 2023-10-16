@@ -106,15 +106,15 @@ pub async fn handle_incoming_ws_message(
             let mut session = sessions.write().await;
 
             let multiplayer = true;
+            
+            let (session_id, session, color) =
+            session.add_session(uuid_user_id, multiplayer, false, tx.clone());
 
             if !is_multiplayer {
                 // spawn a bot
-                Command::new("../bumblebot/target/release/bumblebot").spawn().expect("failed to spawn bot");
+                Command::new("../bumblebot/target/release/bumblebot").arg(session_id.to_string()).spawn().expect("failed to spawn bot");
             }
-
-            let (session_id, session, color) =
-                session.add_session(uuid_user_id, multiplayer, false, tx.clone());
-
+            
             send_join_success(color, session_id, tx, &session.board);
         }
         IncomingMessage::JoinAnyGame { user_id } => {
