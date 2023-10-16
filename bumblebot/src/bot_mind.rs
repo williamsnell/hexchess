@@ -121,7 +121,7 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     let mut best_move_rating = evaluate_move(board, best_move, bot_color);
 
     for player_move in move_options {
-        let rating = minimax(board, player_move, 3, i16::MIN, i16::MAX)
+        let rating = minimax(board, player_move, 2, i16::MIN, i16::MAX)
             * (if matches!(bot_color, Color::White) {
                 1
             } else {
