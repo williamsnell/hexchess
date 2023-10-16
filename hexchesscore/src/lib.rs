@@ -5,6 +5,8 @@ pub mod moves;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     fn setup_default_board() -> Board {
