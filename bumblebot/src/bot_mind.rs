@@ -1,4 +1,7 @@
-use std::{thread::current, cmp::{max, min}};
+use std::{
+    cmp::{max, min},
+    thread::current,
+};
 
 use hexchesscore::{get_all_valid_moves, Board, Color, Move, Piece, PieceType};
 
@@ -33,7 +36,7 @@ fn apply_move(board: &mut Board, movement: Move) -> (&mut Board, Option<Piece>) 
     let taken_piece = board
         .occupied_squares
         .insert(movement.final_hex, moving_piece);
-    board.current_player.invert();
+    board.current_player = board.current_player.invert();
     (board, taken_piece)
 }
 
@@ -56,7 +59,7 @@ fn revert_move(
             .occupied_squares
             .insert(movement.final_hex, taken_piece);
     }
-    board.current_player.invert();
+    board.current_player = board.current_player.invert();
     (board, taken_piece)
 }
 
@@ -73,37 +76,36 @@ pub fn minimax(board: &mut Board, movement: Move, depth: i8, mut alpha: i16, mut
     let mut rating;
     if depth == 0 {
         rating = evaluate_board(board)
-            * (if matches!(board.current_player, Color::White) {
-                1
-            } else {
-                -1
-            })
     } else {
         // invert now, since we have to do it in either case
-        new_board.current_player.invert();
         // if the current player is black, then we're white,
         // and want to maximize the value
         let moves = get_all_valid_moves(new_board);
         // if there's a checkmate, it's the highest value possible
         if moves.len() == 0 {
-            return i16::MIN
+            return i16::MIN;
         }
-        if matches!(new_board.current_player, Color::Black) {
+        if new_board.current_player == Color::Black {
             rating = i16::MIN;
             for valid_move in moves {
-                rating = max(rating, minimax(new_board, valid_move, depth - 1, alpha, beta));
+                rating = max(
+                    rating,
+                    minimax(new_board, valid_move, depth - 1, alpha, beta),
+                );
                 if rating > beta {
-                    break
+                    break;
                 }
                 alpha = max(alpha, rating);
             }
-        // we're black, and want to minimize the value
         } else {
             rating = i16::MAX;
             for valid_move in moves {
-                rating = min(rating, minimax(new_board, valid_move, depth - 1, alpha, beta));
+                rating = min(
+                    rating,
+                    minimax(new_board, valid_move, depth - 1, alpha, beta),
+                );
                 if rating < alpha {
-                    break
+                    break;
                 }
                 beta = min(beta, rating);
             }
@@ -119,7 +121,12 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     let mut best_move_rating = evaluate_move(board, best_move, bot_color);
 
     for player_move in move_options {
-        let rating = minimax(board, player_move, 2, i16::MIN, i16::MAX);
+        let rating = minimax(board, player_move, 3, i16::MIN, i16::MAX)
+            * (if matches!(bot_color, Color::White) {
+                1
+            } else {
+                -1
+            });
         dbg!(player_move, rating);
         if rating > best_move_rating {
             best_move_rating = rating;

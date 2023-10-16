@@ -1,6 +1,6 @@
-use std::{net::TcpStream, env};
+use std::{env, net::TcpStream};
 
-use hexchesscore::Color;
+use hexchesscore::{Color, Board};
 
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
@@ -66,27 +66,31 @@ fn main() {
     // suggested move
     let args: Vec<String> = env::args().collect();
     dbg!(&args);
-    
+
     let (mut socket, response) =
         connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
 
     let user_id = Uuid::new_v4();
 
-    let message = IncomingMessage::JoinGame {
-        user_id: user_id.to_string(),
-        game_id: args[1].to_string()
-    };
+    if args.len() > 1 {
+        let message = IncomingMessage::JoinGame {
+            user_id: user_id.to_string(),
+            game_id: args[1].to_string(),
+        };
 
+        // initialize the session_id with something useless
+        let mut current_color = Color::Black;
 
-    // initialize the session_id with something useless
-    let mut current_color = Color::Black;
+        socket.send(Message::Text(
+            serde_json::to_string(&message).expect("Couldn't serialize message"),
+        ));
 
-    socket.send(Message::Text(
-        serde_json::to_string(&message).expect("Couldn't serialize message"),
-    ));
-
-    loop {
-        let msg = socket.read().expect("Error reading WS message");
-        handle_message(msg, user_id, &mut current_color, &mut socket);
+        loop {
+            let msg = socket.read().expect("Error reading WS message");
+            handle_message(msg, user_id, &mut current_color, &mut socket);
+        }
+    } else {
+        make_a_move(&mut Board::setup_default_board(), Color::White);
     }
 }
+
