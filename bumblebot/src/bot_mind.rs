@@ -91,7 +91,7 @@ pub fn minimax(board: &mut Board, movement: Move, depth: i8, mut alpha: i16, mut
         if matches!(new_board.current_player, Color::Black) {
             rating = i16::MIN;
             for valid_move in moves {
-                rating = minimax(new_board, valid_move, depth - 1, alpha, beta);
+                rating = max(rating, minimax(new_board, valid_move, depth - 1, alpha, beta));
                 if rating > beta {
                     break
                 }
@@ -101,7 +101,7 @@ pub fn minimax(board: &mut Board, movement: Move, depth: i8, mut alpha: i16, mut
         } else {
             rating = i16::MAX;
             for valid_move in moves {
-                rating = minimax(new_board, valid_move, depth - 1, alpha, beta);
+                rating = min(rating, minimax(new_board, valid_move, depth - 1, alpha, beta));
                 if rating < alpha {
                     break
                 }
@@ -119,7 +119,7 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     let mut best_move_rating = evaluate_move(board, best_move, bot_color);
 
     for player_move in move_options {
-        let rating = minimax(board, player_move, 3, i16::MIN, i16::MAX);
+        let rating = minimax(board, player_move, 2, i16::MIN, i16::MAX);
         dbg!(player_move, rating);
         if rating > best_move_rating {
             best_move_rating = rating;
@@ -128,4 +128,3 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     }
     best_move
 }
-
