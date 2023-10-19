@@ -141,11 +141,7 @@ pub fn alpha_beta_prune_with_best_move(
             let (new_board, taken_piece) = apply_move(board, valid_move);
             
             // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
-            rating = f32::max((if bot_color == Color::White {
-                -1.0
-            } else {
-                1.0
-            }) * alpha_beta_prune(new_board, depth - 1, -beta, -alpha), rating);
+            rating = f32::max(-alpha_beta_prune(new_board, depth - 1, -beta, -alpha), rating);
             dbg!(rating);
             revert_move(board, valid_move, taken_piece);
             if rating > beta {
