@@ -1,7 +1,11 @@
 use std::{
     cmp::{max, min},
-    thread::current, collections::{vec_deque, VecDeque},
+    thread::{current, self}, collections::{vec_deque, VecDeque}, time::Duration,
 };
+use api::OutgoingMessage;
+use tokio::{self, sync::mpsc};
+use warp::ws::Message;
+
 
 use hexchesscore::{get_all_valid_moves, Board, Color, Move, Piece, PieceType};
 
@@ -23,12 +27,11 @@ pub fn evaluate_board(board: &Board) -> f32 {
             Color::Black => black_count += value,
         }
     }
-    dbg!(white_count - black_count);
     (if board.current_player == Color::White {
         1.0
     } else {
         -1.0
-    }) * white_count - black_count
+    }) * (white_count - black_count)
 }
 
 fn apply_move(board: &mut Board, movement: Move) -> (&mut Board, Option<Piece>) {
@@ -83,11 +86,20 @@ pub fn negamax(board: &mut Board, depth: i8) -> f32 {
     }
 }
 
-pub fn alpha_beta_prune(board: &mut Board, depth: i8, mut alpha: f32, mut beta: f32) -> f32 {
-    dbg!(board.current_player);
+pub fn send_board(transmitter: &mpsc::UnboundedSender<Message>, board: Board) {
+    let _result = transmitter.send(Message::text(
+        serde_json::to_string(&OutgoingMessage::BoardState { board: board}).unwrap()));
+}
+
+
+pub fn alpha_beta_prune(board: &mut Board, depth: i8, mut alpha: f32, mut beta: f32, 
+    // tx: &mpsc::UnboundedSender<Message>
+) -> f32 {
     let mut rating;
     if depth == 0 {
-        rating = evaluate_board(board)
+        // send_board(tx, board.clone());
+        rating = evaluate_board(board);
+        // thread::sleep(Duration::from_millis(100));
     } else {
         let moves: VecDeque<Move> = get_all_valid_moves(board).into();
 
@@ -96,12 +108,13 @@ pub fn alpha_beta_prune(board: &mut Board, depth: i8, mut alpha: f32, mut beta: 
         for valid_move in moves {
             let (new_board, taken_piece) = apply_move(board, valid_move);
 
-            let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha);
+            // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
+            rating = f32::max(rating, -alpha_beta_prune(new_board, depth - 1, -beta, -alpha));
             revert_move(board, valid_move, taken_piece);
-            if eval > beta {
+            if rating > beta {
                 break;
             }
-            rating = f32::max(alpha, eval);
+            alpha = f32::max(alpha, rating);
         }
     }
     rating
@@ -113,49 +126,42 @@ pub fn alpha_beta_prune_with_best_move(
     mut best_move: Move,
     mut alpha: f32,
     mut beta: f32,
+    bot_color: Color,
+    // tx: &mpsc::UnboundedSender<Message>
 ) -> (f32, Move) {
     let mut rating;
     if depth == 0 {
         rating = evaluate_board(board)
     } else {
-        let mut moves: VecDeque<Move> = get_all_valid_moves(board).into();
-
-        // reorder the moves to get the assumed best one first
-        // TODO check that the move was actually in 
-        moves.retain(|x| {x != &best_move});
-        moves.push_front(best_move);
+        let moves: VecDeque<Move> = get_all_valid_moves(board).into();
 
         rating = f32::NEG_INFINITY;
 
-        if board.current_player == Color::Black {
-            dbg!(board.current_player);
-            // start at negative infinity, since if there are no moves available
-            // to the opponent, that's the best possible state
-            rating = f32::NEG_INFINITY;
+        for valid_move in moves {
+            let (new_board, taken_piece) = apply_move(board, valid_move);
             
-        } else {
-            rating = f32::INFINITY;
-            // start at infinity, since if there are no moves available
-            // to the opponent, that's the best possible state
-            for valid_move in moves {
-                let (new_board, taken_piece) = apply_move(board, valid_move);
-                let eval = alpha_beta_prune(new_board, depth - 1, alpha, beta);
-                if eval < rating {
-                    best_move = valid_move;
-                    rating = eval;
-                }
-                revert_move(board, valid_move, taken_piece);
-                if rating < alpha {
-                    break;
-                }
-                beta = f32::min(beta, rating);
+            // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
+            rating = f32::max((if bot_color == Color::White {
+                -1.0
+            } else {
+                1.0
+            }) * alpha_beta_prune(new_board, depth - 1, -beta, -alpha), rating);
+            dbg!(rating);
+            revert_move(board, valid_move, taken_piece);
+            if rating > beta {
+                break;
+            }
+            if rating > alpha {
+                best_move = valid_move;
+                alpha = rating;
             }
         }
     }
     (rating, best_move)
 }
 
-pub fn iterative_deepening(board: &mut Board, max_depth: i8) -> Move {
+// pub fn iterative_deepening(board: &mut Board, max_depth: i8, tx: &mpsc::UnboundedSender<Message>) -> Move {
+    pub fn iterative_deepening(board: &mut Board, max_depth: i8) -> Move {
     let moves = get_all_valid_moves(board);
     let mut best_move = moves[0];
     
@@ -163,7 +169,8 @@ pub fn iterative_deepening(board: &mut Board, max_depth: i8) -> Move {
     
     for depth in 0..(max_depth + 1) {
         dbg!(best_move, rating);
-        (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY);
+        // (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, tx);
+        (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, board.current_player.clone());
         // evaluate the possible moves via alpha-beta pruning at current depth
         // start with the best move currently identified
     }
@@ -190,5 +197,5 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     //         best_move = player_move
     //     }
     // }
-    iterative_deepening(board, 2)
+    iterative_deepening(board, 3)
 }

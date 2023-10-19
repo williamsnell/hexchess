@@ -3,13 +3,7 @@ use warp::ws::Message;
 use hexchesscore::{Board, Color};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub enum PlayerColor {
-    Black,
-    White,
-    Both
-}
+use api::PlayerColor;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlayersPerGame {
