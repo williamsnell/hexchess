@@ -142,7 +142,6 @@ pub fn alpha_beta_prune_with_best_move(
             
             // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
             rating = f32::max(-alpha_beta_prune(new_board, depth - 1, -beta, -alpha), rating);
-            dbg!(rating);
             revert_move(board, valid_move, taken_piece);
             if rating > beta {
                 break;
@@ -164,7 +163,6 @@ pub fn alpha_beta_prune_with_best_move(
     let mut rating = f32::NAN;
     
     for depth in 0..(max_depth + 1) {
-        dbg!(best_move, rating);
         // (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, tx);
         (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, board.current_player.clone());
         // evaluate the possible moves via alpha-beta pruning at current depth
@@ -193,5 +191,5 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     //         best_move = player_move
     //     }
     // }
-    iterative_deepening(board, 3)
+    iterative_deepening(board, 4)
 }
