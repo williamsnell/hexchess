@@ -239,5 +239,5 @@ pub fn make_a_move(board: &mut Board, timeout_ms: u64) -> Move {
     //         best_move = player_move
     //     }
     // }
-    iterative_deepening(board, 4, timeout_ms)
+    iterative_deepening(board, 20, timeout_ms)
 }
