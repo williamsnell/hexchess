@@ -1,11 +1,13 @@
+use api::OutgoingMessage;
 use std::{
     cmp::{max, min},
-    thread::{current, self}, collections::{vec_deque, VecDeque}, time::Duration,
+    collections::{vec_deque, VecDeque},
+    thread::{self, current},
+    time::Duration,
 };
-use api::OutgoingMessage;
-use tokio::{self, sync::mpsc};
+use tokio::{self, sync::mpsc, task::yield_now};
+use std::time::Instant;
 use warp::ws::Message;
-
 
 use hexchesscore::{get_all_valid_moves, Board, Color, Move, Piece, PieceType};
 
@@ -88,36 +90,59 @@ pub fn negamax(board: &mut Board, depth: i8) -> f32 {
 
 pub fn send_board(transmitter: &mpsc::UnboundedSender<Message>, board: Board) {
     let _result = transmitter.send(Message::text(
-        serde_json::to_string(&OutgoingMessage::BoardState { board: board}).unwrap()));
+        serde_json::to_string(&OutgoingMessage::BoardState { board: board }).unwrap(),
+    ));
 }
 
-
-pub fn alpha_beta_prune(board: &mut Board, depth: i8, mut alpha: f32, mut beta: f32, 
+pub fn alpha_beta_prune(
+    board: &mut Board,
+    depth: i8,
+    mut alpha: f32,
+    mut beta: f32,
+    timeout: Instant
     // tx: &mpsc::UnboundedSender<Message>
-) -> f32 {
+) -> Option<f32> {
     let mut rating;
     if depth == 0 {
         // send_board(tx, board.clone());
         rating = evaluate_board(board);
         // thread::sleep(Duration::from_millis(100));
     } else {
-        let moves: VecDeque<Move> = get_all_valid_moves(board).into();
+        let moves = get_all_valid_moves(board);
 
         rating = f32::NEG_INFINITY;
 
         for valid_move in moves {
             let (new_board, taken_piece) = apply_move(board, valid_move);
 
-            // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
-            rating = f32::max(rating, -alpha_beta_prune(new_board, depth - 1, -beta, -alpha));
+            let eval = alpha_beta_prune(new_board, depth - 1, -beta, -alpha, timeout);
             revert_move(board, valid_move, taken_piece);
-            if rating > beta {
-                break;
+
+            if let Some(eval) = eval {
+                rating = f32::max(
+                    rating,
+                    -eval,
+                );
+                if rating > beta {
+                    break;
+                }
+            } else {
+                // bubble up the None so we cancel the search
+                return None;
             }
+
             alpha = f32::max(alpha, rating);
         }
     }
-    rating
+    if depth > 2 {
+        // if our depth is > 2 from the bottom level of the search, we will only visit this
+        // level relatively rarely. We should poll the remaining time and figure out if we've
+        // already taken too long.
+        if Instant::now() > timeout {
+            return None;
+        }
+    }
+    Some(rating)
 }
 
 pub fn alpha_beta_prune_with_best_move(
@@ -126,52 +151,75 @@ pub fn alpha_beta_prune_with_best_move(
     mut best_move: Move,
     mut alpha: f32,
     mut beta: f32,
-    bot_color: Color,
-    // tx: &mpsc::UnboundedSender<Message>
-) -> (f32, Move) {
+    timeout: Instant,
+) -> Option<(f32, Move)> {
     let mut rating;
     if depth == 0 {
         rating = evaluate_board(board)
     } else {
-        let moves: VecDeque<Move> = get_all_valid_moves(board).into();
+        let mut moves: VecDeque<Move> = get_all_valid_moves(board).into();
+        // move the best move to the front of the list
+        moves.retain(|&x| x != best_move);
+        moves.push_front(best_move);
 
         rating = f32::NEG_INFINITY;
 
         for valid_move in moves {
             let (new_board, taken_piece) = apply_move(board, valid_move);
-            
-            // let eval = -alpha_beta_prune(new_board, depth - 1, -beta, -alpha, tx);
-            rating = f32::max(-alpha_beta_prune(new_board, depth - 1, -beta, -alpha), rating);
+
+            let eval = alpha_beta_prune(new_board, depth - 1, -beta, -alpha, timeout);
             revert_move(board, valid_move, taken_piece);
-            if rating > beta {
-                break;
-            }
-            if rating > alpha {
-                best_move = valid_move;
-                alpha = rating;
+
+            if let Some(eval) = eval {
+                rating = f32::max(
+                    -eval,
+                    rating,
+                );
+                if rating > beta {
+                    break;
+                }
+                if rating > alpha {
+                    best_move = valid_move;
+                    alpha = rating;
+                }
+            } else {
+                return None;
             }
         }
     }
-    (rating, best_move)
+    Some((rating, best_move))
 }
 
 // pub fn iterative_deepening(board: &mut Board, max_depth: i8, tx: &mpsc::UnboundedSender<Message>) -> Move {
-    pub fn iterative_deepening(board: &mut Board, max_depth: i8) -> Move {
+pub fn iterative_deepening(board: &mut Board, max_depth: i8, timeout_ms: u64) -> Move {
     let moves = get_all_valid_moves(board);
     let mut best_move = moves[0];
-    
-    let mut rating = f32::NAN;
-    
+
+    // setup timer
+    let end: Instant = Instant::now() + Duration::from_millis(timeout_ms);
+
+
     for depth in 0..(max_depth + 1) {
-        // (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, tx);
-        (rating, best_move) = alpha_beta_prune_with_best_move(board, depth, best_move, f32::NEG_INFINITY, f32::INFINITY, board.current_player.clone());
-        // evaluate the possible moves via alpha-beta pruning at current depth
-        // start with the best move currently identified
+        dbg!(depth);
+        if let Some((_new_rating, new_best_move)) = alpha_beta_prune_with_best_move(
+            board,
+            depth,
+            best_move,
+            f32::NEG_INFINITY,
+            f32::INFINITY,
+            end
+        ) {
+            best_move = new_best_move;
+        } else {
+            // we've timed out, and need to pass whatever has been calculated
+            // already
+            return best_move
+        }
     }
     best_move
 }
 
-pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
+pub fn make_a_move(board: &mut Board, timeout_ms: u64) -> Move {
     // let move_options = get_all_valid_moves(board);
     // let mut best_move = move_options[0];
     // let mut best_move_rating = evaluate_move(board, best_move, bot_color);
@@ -191,5 +239,5 @@ pub fn make_a_move(board: &mut Board, bot_color: Color) -> Move {
     //         best_move = player_move
     //     }
     // }
-    iterative_deepening(board, 4)
+    iterative_deepening(board, 4, timeout_ms)
 }

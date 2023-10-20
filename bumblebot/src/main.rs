@@ -25,7 +25,7 @@ fn match_player_color(color: PlayerColor) -> Color {
     }
 }
 
-fn handle_message(
+async fn handle_message(
     message: tungstenite::Message,
     user_id: Uuid,
     current_color: &mut Color,
@@ -46,7 +46,7 @@ fn handle_message(
         }
         OutgoingMessage::BoardState { mut board } => {
             if board.current_player == *current_color {
-                let intended_move = make_a_move(&mut board, *current_color);
+                let intended_move = make_a_move(&mut board, 500);
                 let _ = socket.send(tungstenite::Message::Text(
                     serde_json::to_string(&IncomingMessage::RegisterMove {
                         user_id: user_id.to_string(),
@@ -66,7 +66,7 @@ fn handle_message(
 pub fn spawn_bot(tx: &mpsc::UnboundedSender<Message>) {
     let (mut board, mut board2) = setup_test_boards();
     board.current_player = board.current_player.invert();
-    iterative_deepening(&mut board2, 3);
+    iterative_deepening(&mut board2, 3, 1000);
     // iterative_deepening(&mut board2, 3, tx);
     // loop {
     //     send_board(tx, board.clone());
@@ -154,10 +154,10 @@ async fn main() {
 
         loop {
             let msg = socket.read().expect("Error reading WS message");
-            handle_message(msg, user_id, &mut current_color, &mut socket);
+            handle_message(msg, user_id, &mut current_color, &mut socket).await;
         }
     } else {
-        make_a_move(&mut Board::setup_default_board(), Color::White);
+        make_a_move(&mut Board::setup_default_board(), 100);
     }
     // let websocket =
     //     warp::path("ws")
