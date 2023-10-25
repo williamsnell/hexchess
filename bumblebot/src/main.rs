@@ -134,12 +134,13 @@ async fn main() {
     let args: Vec<String> = env::args().collect();
     dbg!(&args);
 
-    let (mut socket, response) =
-        connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
-
-    let user_id = Uuid::new_v4();
-
+    
     if args.len() > 1 {
+        let (mut socket, response) =
+            connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
+    
+        let user_id = Uuid::new_v4();
+
         let message = IncomingMessage::JoinGame {
             user_id: user_id.to_string(),
             game_id: args[1].to_string(),
@@ -157,7 +158,7 @@ async fn main() {
             handle_message(msg, user_id, &mut current_color, &mut socket).await;
         }
     } else {
-        make_a_move(&mut Board::setup_default_board(), 100);
+        make_a_move(&mut Board::setup_default_board(), 100000);
     }
     // let websocket =
     //     warp::path("ws")
