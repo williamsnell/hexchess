@@ -258,6 +258,14 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Hexagonal Chessagonal</title>
+	<meta 
+		name="description" 
+		content="Play hexagon chess, free and open source. Online multiplayer or vs the computer. Gliński's variation. https://github.com/williamsnell/hexchess" 
+	/>
+</svelte:head>
+
 <title>Hexagonal Chessagonal</title>
 <body>
 	<div class="top-bar">
