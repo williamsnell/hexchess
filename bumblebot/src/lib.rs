@@ -2,6 +2,8 @@ use std::{thread, time::Duration, collections::HashMap};
 
 use crate::bot_mind::*;
 pub mod bot_mind;
+pub mod random_bot;
+
 use api::OutgoingMessage;
 use hexchesscore::{Board, Hexagon, Piece, Color};
 use tokio::sync::mpsc;

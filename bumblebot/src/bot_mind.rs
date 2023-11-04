@@ -9,7 +9,7 @@ use tokio::{self, sync::mpsc, task::yield_now};
 use std::time::Instant;
 use warp::ws::Message;
 
-use hexchesscore::{get_all_valid_moves, Board, Color, Move, Piece, PieceType};
+use hexchesscore::{get_all_valid_moves, Board, Color, Move, PieceType, apply_move, revert_move};
 
 pub fn evaluate_board(board: &Board) -> f32 {
     // count each player's pieces
@@ -34,43 +34,6 @@ pub fn evaluate_board(board: &Board) -> f32 {
     } else {
         -1.0
     }) * (white_count - black_count)
-}
-
-fn apply_move(board: &mut Board, movement: Move) -> (&mut Board, Option<Piece>) {
-    // this function assumes the move is legal. The legality checking
-    // should have already happened in the move generation
-    let moving_piece = board
-        .occupied_squares
-        .remove(&movement.start_hex)
-        .expect("Piece wasn't present at start hex");
-    let taken_piece = board
-        .occupied_squares
-        .insert(movement.final_hex, moving_piece);
-    board.current_player = board.current_player.invert();
-    (board, taken_piece)
-}
-
-fn revert_move(
-    board: &mut Board,
-    movement: Move,
-    taken_piece: Option<Piece>,
-) -> (&mut Board, Option<Piece>) {
-    // this function assumes the move is legal. The legality checking
-    // should have already happened in the move generation
-    let moving_piece = board
-        .occupied_squares
-        .remove(&movement.final_hex)
-        .expect("Piece wasn't present at final hex");
-    board
-        .occupied_squares
-        .insert(movement.start_hex, moving_piece);
-    if let Some(taken_piece) = taken_piece {
-        board
-            .occupied_squares
-            .insert(movement.final_hex, taken_piece);
-    }
-    board.current_player = board.current_player.invert();
-    (board, taken_piece)
 }
 
 pub fn negamax(board: &mut Board, depth: i8) -> f32 {

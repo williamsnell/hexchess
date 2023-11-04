@@ -13,7 +13,7 @@ use uuid::{self, Uuid};
 
 use api::{PlayerColor, IncomingMessage, OutgoingMessage};
 
-use bumblebot::{bot_mind::{alpha_beta_prune, iterative_deepening, make_a_move}, setup_test_boards};
+use bumblebot::{bot_mind::{alpha_beta_prune, iterative_deepening, make_a_move}, setup_test_boards, random_bot::{tree_search, ScoreBoard}};
 
 fn match_player_color(color: PlayerColor) -> Color {
     match color {
@@ -129,6 +129,8 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket) {
 }
 #[tokio::main]
 async fn main() {
+    tree_search(&mut Board::setup_default_board(), 1000, ScoreBoard::new());
+
     // spool up a bot that will respond to a board state with its
     // suggested move
     let args: Vec<String> = env::args().collect();

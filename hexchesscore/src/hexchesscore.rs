@@ -583,3 +583,41 @@ pub fn convert_en_passant_to_virtual_pawn(final_hexagon: &Hexagon, valid_player:
     new_hex.file = actual_pawn_file;
     new_hex
 }
+
+
+pub fn apply_move(board: &mut Board, movement: Move) -> (&mut Board, Option<Piece>) {
+    // this function assumes the move is legal. The legality checking
+    // should have already happened in the move generation
+    let moving_piece = board
+        .occupied_squares
+        .remove(&movement.start_hex)
+        .expect("Piece wasn't present at start hex");
+    let taken_piece = board
+        .occupied_squares
+        .insert(movement.final_hex, moving_piece);
+    board.current_player = board.current_player.invert();
+    (board, taken_piece)
+}
+
+pub fn revert_move(
+    board: &mut Board,
+    movement: Move,
+    taken_piece: Option<Piece>,
+) -> (&mut Board, Option<Piece>) {
+    // this function assumes the move is legal. The legality checking
+    // should have already happened in the move generation
+    let moving_piece = board
+        .occupied_squares
+        .remove(&movement.final_hex)
+        .expect("Piece wasn't present at final hex");
+    board
+        .occupied_squares
+        .insert(movement.start_hex, moving_piece);
+    if let Some(taken_piece) = taken_piece {
+        board
+            .occupied_squares
+            .insert(movement.final_hex, taken_piece);
+    }
+    board.current_player = board.current_player.invert();
+    (board, taken_piece)
+}
