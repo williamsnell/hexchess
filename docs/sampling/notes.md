@@ -46,9 +46,6 @@ def divisor_method(num_samples, num_options, divisor):
     return choices
 ```
 
-Here's an animation showing a number of divisors, the number of random numbers generated for each method,
-and the instantaneous (black) vs cumulative (green) distributions for each bin.
-
 In the extreme case (divisor equal to the number of samples), we are doing 
 the same amount of work as if for each sample, we'd randomly picked a move.
 
@@ -58,6 +55,15 @@ The interesting things to note are:
 - even in the n/20 case, we're still seeing a pretty spikey distribution,
   and yet also doing >10% as much work as if we just randomly sampled each 
   move.
+
+Here's an animation showing a number of divisors, the number of random numbers generated for each method,
+and the instantaneous (black) vs cumulative (green) distributions for each bin.
+
+> A note on plots:
+
+    - black is the instantaneous distribution (the result of calling the function once.)
+    - green is the average distribution from all calls made so far
+    - the blue line is the "true" distribution from which the choices are being sampled
 
 ![gif of distributions](choice_distr_1000.gif)
 
@@ -94,7 +100,7 @@ def remainder_method(num_samples, num_options, divisor):
 
 Let's see how that looks (using 999 samples so we don't get a perfectly even split into our 40 moves) 
 
-(the remainder method is in the bottom right plots):
+(the remainder method is in the bottom right plot):
 
 ![gif of distributions, including the new uniform + random remainder method, for 999 samples](divvy_remainder_999.gif)
 
@@ -103,7 +109,7 @@ If we have relatively few samples, we get a much more even distribution with the
 
 ![gif of distributions, including the new uniform + random remainder method, for 90 samples](divvy_remainder_90.gif)
 
-And in the extreme case, we just get back the divisor method:
+And in the case where num_options > num_samples, we just get back the divisor method:
 ![with few samples, the remainder method becomes the divisor method](divvy_remainder_5.gif)
 
 # Biasing Samples

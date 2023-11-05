@@ -4,10 +4,11 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 import math
 
-num_samples = 80
+num_samples = 1
 num_options = 40
 
-divisors = ['mmp  4', 'remainder 2', 1, 4, 20, num_samples, 'remainder 1']
+divisors = [1, 4, 20, num_samples, 'remainder 1']
+# divisors = ['mmp  4', 'remainder 2', 1, 4, 20, num_samples, 'remainder 1']
 
 stats = {
     k: 0 for k in divisors
@@ -50,7 +51,7 @@ def biased_pick_and_random_fill(num_samples, num_options, divisor, bias, choice_
     n_calls = 0
 
     while remaining_samples > 0:
-        allocated = random.randrange(1, remaining_samples + 1)
+        allocated = random.randrange(remaining_samples + 1)
         allocated = (allocated + (divisor - 1)) // divisor
 
         # remap the available choices based on the distribution parameter
@@ -77,7 +78,7 @@ def divvy_remainder(num_samples, num_options, divisor, choice_list):
     while remainder > 0:
         n_calls += 1
 
-        allocated = (random.randrange(1, remainder + 1) + (divisor - 1)) // divisor
+        allocated = (random.randrange(remainder + 1) + (divisor - 1)) // divisor
         choices[random.randrange(num_options)] += allocated
         remainder -= allocated
 
@@ -94,7 +95,7 @@ def divvy_remainder_biased(num_samples, num_options, divisor, bias, choice_list)
     while remainder > 0:
         n_calls += 1
 
-        allocated = (random.randrange(1, remainder + 1) + (divisor - 1)) // divisor
+        allocated = (random.randrange(remainder + 1) + (divisor - 1)) // divisor
         choices[random.choices(range(num_options), weights=bias)[0]] += allocated
         remainder -= allocated
 
@@ -113,7 +114,7 @@ def mmp(num_samples, num_options, divisor, bias, choice_list):
     while remainder > 0:
         n_calls += 1
 
-        allocated = (random.randrange(1, remainder + 1) + (divisor - 1)) // divisor
+        allocated = (random.randrange(remainder + 1) + (divisor - 1)) // divisor
         choices[random.choices(range(num_options), weights=remainder_bias)[0]] += allocated
         remainder -= allocated
 
@@ -134,14 +135,17 @@ def animate(i, axes):
         dists.items(), axes.flatten()
         ):
         samples_per_frame = 100
+        bias = np.arange(num_options)
+        # bias = np.ones(num_options)
+
         for _ in range(samples_per_frame):
             if isinstance(divisor, str):
                 if divisor[:3] == 'mmp':
-                    mmp(num_samples, num_options, int(divisor[5:]), np.arange(num_options), choice_list)
+                    mmp(num_samples, num_options, int(divisor[5:]), bias, choice_list)
                 else:
-                    divvy_remainder_biased(num_samples, num_options, int(divisor[10:]), np.arange(num_options), choice_list)
+                    divvy_remainder_biased(num_samples, num_options, int(divisor[10:]), bias, choice_list)
             else:
-                biased_pick_and_random_fill(num_samples, num_options, divisor, np.arange(num_options), choice_list)
+                biased_pick_and_random_fill(num_samples, num_options, divisor, bias, choice_list)
             
         final_dist = np.sum(np.array(choice_list), axis=0)
 
@@ -152,16 +156,17 @@ def animate(i, axes):
 
         ax.bar(np.arange(num_options), final_dist / samples_per_frame / (i+2), label=divisor, color='g', alpha=1)
         ax.bar(np.arange(num_options), choice_list[-1], label=divisor, color='k', alpha=1)
-        ax.plot(np.arange(num_options), np.arange(num_options) / sum(np.arange(num_options)) * num_samples)
-        ax.set_title(divisor)
+        ax.plot(np.arange(num_options), bias / sum(bias) * num_samples)
+        # ax.set_title(divisor)
+        ax.set_title(f"{f'Divisor method: div = {divisor}' if isinstance(divisor, int) else (f'MMP: div = {divisor[5:]}' if divisor[:3] == 'mmp' else f'Remainder method: div = {divisor[10:]}')} \n\n {stats[divisor] / samples_per_frame / (i+2):.0f} random ints")
 
         fig.tight_layout()
 
-fig, axes = plt.subplots(3, 1)
+fig, axes = plt.subplots(2, 2)
 fig.suptitle(f"Distributing {num_samples} samples into {num_options} bins")
 
-ani = FuncAnimation(fig, animate, fargs=[axes], interval=10, frames=200)
+ani = FuncAnimation(fig, animate, fargs=[axes], interval=10, frames=20)
 
-# ani.save(f"mmp.gif")
+ani.save(f"biased_1.gif")
 
 plt.show()
