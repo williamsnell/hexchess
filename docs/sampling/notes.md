@@ -8,7 +8,7 @@ This scenario should arrive when multi-threading the tree search - it's not
 especially efficient to spawn a new thread for every single search, and
 synchronising all those threads would quickly become the bottleneck - hence, batching.
 
-If we know we're going to complete 1000 random searches before we want to review the win/draw/loss statistics and decide where to search more thoroughly, it would be nice to not win/draw/loss statistics
+If we know we're going to complete 1000 random searches before we want to review the win/draw/loss statistics and decide where to search more thoroughly, it would be nice to not need
 to generate 1000 random numbers, and instead distribute the moves in roughly the proportions we would expect to get had we done such a random distribution.
 
 But how to distribute our searches efficiently?
