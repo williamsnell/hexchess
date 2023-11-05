@@ -4,7 +4,7 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 import math
 
-num_samples = 40
+num_samples = 80
 num_options = 40
 
 divisors = ['mmp  4', 'remainder 2', 1, 4, 20, num_samples, 'remainder 1']
@@ -117,7 +117,7 @@ def mmp(num_samples, num_options, divisor, bias, choice_list):
         choices[random.choices(range(num_options), weights=remainder_bias)[0]] += allocated
         remainder -= allocated
 
-    stats[f'remainder {divisor}'] += n_calls
+    stats[f'mmp  {divisor}'] += n_calls
     choice_list += [choices]
 
 # def 

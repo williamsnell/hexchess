@@ -2,12 +2,16 @@
 
 # Random sampling
 
-The idea is to try and multi-thread the monte-carlo tree search. With the move selection purely
-random, we would expect some amount of clustering - e.g. if there are 1000 searches and 10 move choices,
-we expect each move to be picked ~100 times. 
+The motivating idea is monte-carlo tree search, and specifically, kicking off batches of random searches efficiently. 
 
-If we have 1000 searches, it would be nice to not have 
-to generate 1000 random numbers, and instead distribute the moves in roughly the proportions we would expect to get had we done such a random distribution. An approach doing exactly that is shown below. 
+This scenario should arrive when multi-threading the tree search - it's not
+especially efficient to spawn a new thread for every single search, and
+synchronising all those threads would quickly become the bottleneck - hence, batching.
+
+If we know we're going to complete 1000 random searches before we want to review the win/draw/loss statistics and decide where to search more thoroughly, it would be nice to not win/draw/loss statistics
+to generate 1000 random numbers, and instead distribute the moves in roughly the proportions we would expect to get had we done such a random distribution.
+
+But how to distribute our searches efficiently?
 
 ## Divisor Method 
 
