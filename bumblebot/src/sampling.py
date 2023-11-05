@@ -7,7 +7,7 @@ import math
 num_samples = 40
 num_options = 40
 
-divisors = ['mmp  2', 'remainder 2', 1, 4, 20, num_samples, 'remainder 1']
+divisors = ['mmp  4', 'remainder 2', 1, 4, 20, num_samples, 'remainder 1']
 
 stats = {
     k: 0 for k in divisors

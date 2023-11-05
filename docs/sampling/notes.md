@@ -192,6 +192,9 @@ we also faithfully reproduce the distribution. But what if our number of samples
 
 ![with similar numbers of options and samples, our distribution gets grossly sliced by integer division boundaries](uh_oh.gif)
 
+... gross. There's a clear step where we go from one integer sample per move to 2 samples per move. This
+gives us the best instantaneous distribution we could hope for, but effectively compresses our distribution to integer values and makes our distribution very blocky.
+
 There's still some hope though - for these cases, our remainders are going to be very large.
 
 Taking our inspiration from [MMP government](https://en.wikipedia.org/wiki/Mixed-member_proportional_representation), we can strategically distribute this remainder. In other words, the distribution we want for the random samples could be biased to smooth out these integer steps.
