@@ -134,14 +134,15 @@ mod tests {
     }
     #[test]
     fn test_random_sampling() {
-        let n = 10;
+        let n = 1000;
         let num_moves = 20;
         let num_samples = 50;
-        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_moves, num_samples)).collect();
-        for sample in samples {
-            dbg!(&sample);
+        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_moves, num_samples, (0..num_moves).collect())).collect();
+        for sample in &samples {
             let total: usize = sample.iter().sum();
-            dbg!(total);
+            assert!(total == num_samples);
         }
+        let stats = samples.iter().fold(vec![0; num_moves], |acc, s| acc.iter().zip(s).map(|(x, y)| x + y).collect());
+        dbg!(&stats);
     }
 }

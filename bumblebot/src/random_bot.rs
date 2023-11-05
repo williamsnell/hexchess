@@ -1,6 +1,7 @@
 
-use std::{sync::Mutex, collections::HashMap};
+use std::{sync::Mutex, collections::HashMap, os::unix::thread};
 use rand::{Rng, thread_rng};
+use rand_distr::{WeightedIndex, Distribution};
 
 use hexchesscore::{apply_move, revert_move, Move, Board, get_all_valid_moves};
 
@@ -33,17 +34,40 @@ impl ScoreBoard {
     //  
 }
 
-pub fn get_samples(num_moves: usize, num_samples: usize) -> Vec<usize> {
-    //      if we're happy sacrificing a few of the extreme edge-cases
-    //      (where 1 branch gets more than 2x the mean,) we can do 
-    //      the sampling quite easily
-    vec![0; num_moves].iter().map(|_| thread_rng().gen_range(0..((num_samples + num_moves/2) / num_moves))).collect()
+// tuning parameter for the randomness - bigger divisor gives more smoothness at higher
+// computational cost.
+const DIVISOR: usize = 4;
+/// See the writeup in docs/sampling/notes.md
+/// Will return a vec of equal length to bias
+pub fn get_samples(num_moves: usize, num_samples: usize, bias: Vec<usize>) -> Vec<usize> {
+    let b_sum: usize = bias.iter().sum();
+    // do a best-attempt at matching the bias distribution with integer number of samples
+    let mut choices: Vec<usize> = bias.iter().map(|b| num_samples * b / b_sum).collect();
+
+    // build a distribution of where our best-attempt is furthest from our desired distribution
+    let remainder_bias: Vec<usize> = bias.iter().map(|b| num_samples * b % b_sum).collect();
+    let mut remainder = num_samples - choices.iter().sum::<usize>();
+
+    let mut rng = thread_rng();
+
+    // now, divide up the remainder by the bias
+    let index = WeightedIndex::new(remainder_bias)
+        .expect("Failed to initialize biased sampler");
+    
+    while remainder > 0 {
+        let allocated = (thread_rng().gen_range(1..remainder+1) + (DIVISOR - 1)) / DIVISOR;
+        choices[index.sample(&mut rng)] += allocated;
+
+        remainder -= allocated;
+    }
+
+    choices
 }
 
 
 
 
-pub fn tree_search(board: &mut Board, search_n_times: usize, scoreboard: ScoreBoard) -> f32 {
+pub fn tree_search(board: &mut Board, num_searches: usize, scoreboard: ScoreBoard) -> f32 {
     let moves = get_all_valid_moves(board);
 
     // randomly apportion all the moves
@@ -51,7 +75,8 @@ pub fn tree_search(board: &mut Board, search_n_times: usize, scoreboard: ScoreBo
     let samples: Vec<usize> = vec![0; moves.len()].iter().map(|_| thread_rng().gen_range(0..255)).collect();
     let total: usize = samples.iter().sum();
     // 
-    let samples: Vec<usize> = samples.iter().map(|x| x * search_n_times / total).collect();
+    let samples: Vec<usize> = get_samples(num_moves, num_searches, vec![1; num_moves]);
+
 
     dbg!(&samples);
     let actual_total: usize = samples.iter().sum();
