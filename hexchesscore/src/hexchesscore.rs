@@ -379,7 +379,7 @@ pub fn get_valid_moves(
     (valid_moves, double_jump, promotion_moves)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     pub start_hex: Hexagon,
     pub final_hex: Hexagon,
@@ -447,23 +447,21 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
     let king_hex = get_all_pieces_of_matching_color(current_player_color, board)
         .into_iter()
         .find(|(_, piece)| piece.piece_type == PieceType::King)
-        .map(|(hex, _)| hex);
+        .map(|(hex, _)| hex).expect("couldn't find the king");
 
-    if let Some(king_hex) = king_hex {
-        if let Some(attacking_pieces) =
-            get_attacking_pieces(current_player_color.invert(), board, &king_hex)
-        {
-            if attacking_pieces.is_empty() {
-                // There are no attacking pieces, indicating a stalemate
-                return Some(Mate::Stalemate);
-            } else {
-                // The king has no valid moves and is under attack, indicating a checkmate
-                return Some(Mate::Checkmate);
-            }
+    if let Some(attacking_pieces) =
+        get_attacking_pieces(current_player_color.invert(), board, &king_hex)
+    {
+        if attacking_pieces.is_empty() {
+            // There are no attacking pieces, indicating a stalemate
+            return Some(Mate::Stalemate);
+        } else {
+            // The king has no valid moves and is under attack, indicating a checkmate
+            return Some(Mate::Checkmate);
         }
+    } else {
+        None
     }
-
-    None
 }
 
 pub enum HexChessError {
