@@ -4,7 +4,7 @@ use std::{sync::Mutex, collections::HashMap, os::unix::thread};
 use rand::{Rng, thread_rng};
 use rand_distr::{WeightedIndex, Distribution};
 
-use hexchesscore::{apply_move, revert_move, Move, Board, get_all_valid_moves, check_for_mates};
+use hexchesscore::{apply_move, revert_move, Move, Board, get_all_valid_moves, check_for_mates, Color};
 
 // batched monte-carlo tree-search
 
@@ -91,7 +91,11 @@ pub fn tree_search(board: &mut Board, num_searches: usize, scoreboard: &mut Scor
                 hexchesscore::Mate::Checkmate => 1.0,
                 hexchesscore::Mate::Stalemate => 2.0/3.0,
             };
-            scoreboard.score += score;
+            let modifier = match board.current_player { 
+                Color::White => 1.,
+                Color::Black => -1.,
+            };
+            scoreboard.score += score * modifier;
             scoreboard.tally += 1;
             dbg!(scoreboard.score);
         } else {
