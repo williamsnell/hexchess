@@ -112,3 +112,127 @@ once we've generated a random value, we pick which move to assign it to.)
 
 At the point where we pick this random move, we could try bias the random choice towards those bins
 we think are more valuable.
+
+We can do this, in python at least, using the `random.choices()` function, which lets us specify some weights.
+
+```python
+def biased_divisor(num_samples, num_options, divisor, bias, choice_list):
+    ...
+        # the only change - pass in the array of weights
+        choices[random.choices(range(num_options), weights=bias)] += allocated
+        remaining_samples -= allocated
+        
+    return choices
+```
+
+For the remainder method, the easiest thing to do is to multiply the base distribution by
+the weights, recalculate the remainder (if we're dealing with integers, we need to make sure not to undercount
+the number of samples,) and then call the divisor method on what's left.
+
+In python, the fully code for the biased remainder/divisor method is now:
+
+```python
+def divvy_remainder_biased(num_samples, num_options, divisor, bias, choice_list):
+    choices = num_samples * bias // sum(bias) # integer division to keep things whole
+
+    remainder = num_samples - sum(choices)
+
+    # now, divide the remainder randomly
+    n_calls = 0
+    while remainder > 0:
+        n_calls += 1
+
+        allocated = (random.randrange(remainder + 1) + (divisor - 1)) // divisor
+        choices[random.choices(range(num_options), weights=bias)[0]] += allocated
+        remainder -= allocated
+
+    return choices
+```
+
+Making these changes, and specifying a triangular distribution, we get these outputs:
+
+![the divisor method is very noisy, while the remainder + divisor method is almost exactly in line with the cumulative result](biased_999.gif)
+
+Finally, in the case where we only have 1 sample left (which will be quite a lot of our tree search,) it doesn't 
+really make sense to pick a bin, and only then choose how much to allocate. If we look at the results for 1 sample,
+all of our methods developed so far produce the right results, but on average require 2 runs through the algorithm
+before allocating the sample. 
+
+![each choice requires, on average, 2 passes through the algorithm](biased_1.gif)
+
+This is because with our random pick between (0, 1), we have an expected value of (0 + 1) / 2 = 0.5. I.e. we only
+get to allocate our sample 50% of the time. We can easily fix this by allows allocating at least 1 sample. Lets do that,
+and see how it affects the distribution:
+
+![constraining the allocation range to (1, upper_bound) cuts this in half](biased_min1_1.gif)
+
+The new distribution, at least to my eye, is effectively
+identical to the old one. There should be a slight
+difference in the exact distribution to before, since
+previously, the biases were essentially applied twice per pass. I'd expect the new min(1) sampling to more faithfully
+reproduce the expected distribution.
+
+Looking at the results, however, they're essentially indistinguishable:
+
+#### Without min1:
+
+![without min1, we faithfully reproduce the targetdistribution](biased_dist_1.gif)
+
+#### With min(1) - you can tell by the reduced computation cost (1 integer rather than 2 per sample)
+
+![with min1, we also faithfully reproduce the targetdistribution](biased_dist_min1_1.gif)
+
+
+## Uh...
+
+Seems done and dusted, right?
+
+Well, if num_samples is a very large number, we pretty faithfully reproduce our distribution. Also, if num_samples is very low,
+we also faithfully reproduce the distribution. But what if our number of samples is close to the number of options?
+
+![with similar numbers of options and samples, our distribution gets grossly sliced by integer division boundaries](uh_oh.gif)
+
+There's still some hope though - for these cases, our remainders are going to be very large.
+
+Taking our inspiration from [MMP government](https://en.wikipedia.org/wiki/Mixed-member_proportional_representation), we can strategically distribute this remainder. In other words, the distribution we want for the random samples could be biased to smooth out these integer steps.
+
+Something like this: ![sawtooth, high where an integer step is especially egregious](bias_distr.png)
+
+Turns out this function is just the remainder of our biased samples, before we normalize them; that is,
+
+```python
+choices = num_samples * bias // sum(bias)
+
+remainder_bias = (num_samples * bias) % sum(bias)
+
+remainder = num_samples - sum(choices)
+```
+
+Giving the full function:
+
+```python
+def mmp(num_samples, num_options, divisor, bias):
+    choices = num_samples * bias // sum(bias)
+
+    # smooth the edges from our integer division
+    remainder_bias = (num_samples * bias) % sum(bias)
+
+    remainder = num_samples - sum(choices)
+
+    # now, divide the remainder (biased)-randomly
+    n_calls = 0
+    while remainder > 0:
+        n_calls += 1
+
+        allocated = (random.randrange(1, remainder + 1) + (divisor - 1)) // divisor
+        choices[random.choices(range(num_options), 
+        # our weights are now the remainder bias
+        weights=remainder_bias)[0]] += allocated
+        remainder -= allocated
+
+    return choices
+```
+
+The proof is in the pudding, so lets see what it looks like:
+
+![nice and smooth mmp - much better than the remainder method, and better even than our purely random divisor method](mmp.gif)
