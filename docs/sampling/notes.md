@@ -173,7 +173,7 @@ before allocating the sample.
 ![each choice requires, on average, 2 passes through the algorithm](biased_1.gif)
 
 This is because with our random pick between (0, 1), we have an expected value of (0 + 1) / 2 = 0.5. I.e. we only
-get to allocate our sample 50% of the time. We can easily fix this by allows allocating at least 1 sample. Lets do that,
+get to allocate our sample 50% of the time. We can easily fix this by always allocating at least 1 sample. Lets do that,
 and see how it affects the distribution:
 
 ![constraining the allocation range to (1, upper_bound) cuts this in half](biased_min1_1.gif)
