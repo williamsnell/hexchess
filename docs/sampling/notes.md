@@ -92,7 +92,9 @@ def remainder_method(num_samples, num_options, divisor):
     return choices
 ```
 
-Let's see how that looks (using 999 samples so we don't get a perfectly even split into our 40 moves):
+Let's see how that looks (using 999 samples so we don't get a perfectly even split into our 40 moves) 
+
+(the remainder method is in the bottom right plots):
 
 ![gif of distributions, including the new uniform + random remainder method, for 999 samples](divvy_remainder_999.gif)
 
