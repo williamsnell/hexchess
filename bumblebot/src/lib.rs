@@ -137,7 +137,7 @@ mod tests {
         let n = 1000;
         let num_moves = 20;
         let num_samples = 50;
-        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_moves, num_samples, (0..num_moves).collect())).collect();
+        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_samples, (0..num_moves).collect())).collect();
         for sample in &samples {
             let total: usize = sample.iter().sum();
             assert!(total == num_samples);
