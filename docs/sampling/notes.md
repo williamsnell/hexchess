@@ -135,7 +135,7 @@ For the remainder method, the easiest thing to do is to multiply the base distri
 the weights, recalculate the remainder (if we're dealing with integers, we need to make sure not to undercount
 the number of samples,) and then call the divisor method on what's left.
 
-In python, the fully code for the biased remainder/divisor method is now:
+In python, the full code for the biased remainder/divisor method is now:
 
 ```python
 def divvy_remainder_biased(num_samples, num_options, divisor, bias, choice_list):
