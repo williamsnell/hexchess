@@ -29,20 +29,40 @@ impl ScoreBoard {
     pub fn new() -> ScoreBoard {
         ScoreBoard { children: HashMap::<Move, ScoreBoard>::new(), score: 0.0, tally: 0 }
     }
+    // handle creating a new scoreboard for this node if one doesn't already exist,
+    //  
 }
 
-pub fn tree_search(board: &mut Board, search_n_times: u32, scoreboard: ScoreBoard) -> f32 {
+pub fn get_samples(num_moves: usize, num_samples: usize) -> Vec<usize> {
+    //      if we're happy sacrificing a few of the extreme edge-cases
+    //      (where 1 branch gets more than 2x the mean,) we can do 
+    //      the sampling quite easily
+    vec![0; num_moves].iter().map(|_| thread_rng().gen_range(0..((num_samples + num_moves/2) / num_moves))).collect()
+}
+
+
+
+
+pub fn tree_search(board: &mut Board, search_n_times: usize, scoreboard: ScoreBoard) -> f32 {
     let moves = get_all_valid_moves(board);
 
     // randomly apportion all the moves
     let num_moves: usize = moves.len();
-    let samples = vec![0; moves.len()];
-    let samples: Vec<usize> = samples.iter().map(|_| thread_rng().gen_range(0..255)).collect();
+    let samples: Vec<usize> = vec![0; moves.len()].iter().map(|_| thread_rng().gen_range(0..255)).collect();
     let total: usize = samples.iter().sum();
-    dbg!(total);
     // 
+    let samples: Vec<usize> = samples.iter().map(|x| x * search_n_times / total).collect();
+
     dbg!(&samples);
-    let samples: Vec<usize> = samples.iter().map(|x| x * moves.len() * moves.len() / total).collect();
-    dbg!(samples);
+    let actual_total: usize = samples.iter().sum();
+    dbg!(actual_total);
+
+    for (i, movement) in moves.iter().enumerate() {
+        let (board, taken_piece) = apply_move(board, *movement);
+        // set up the new scoreboard, or retrieve one that already exists
+        // tree_search(board, samples[i], scoreboard);
+
+        revert_move(board, *movement, taken_piece);
+    }
     1.0
 }

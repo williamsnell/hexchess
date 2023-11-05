@@ -129,7 +129,7 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket) {
 }
 #[tokio::main]
 async fn main() {
-    tree_search(&mut Board::setup_default_board(), 1000, ScoreBoard::new());
+    tree_search(&mut Board::setup_default_board(), 19, ScoreBoard::new());
 
     // spool up a bot that will respond to a board state with its
     // suggested move

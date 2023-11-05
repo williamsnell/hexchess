@@ -1,11 +1,11 @@
-use std::{thread, time::Duration, collections::HashMap};
+use std::{collections::HashMap, thread, time::Duration};
 
 use crate::bot_mind::*;
 pub mod bot_mind;
 pub mod random_bot;
 
 use api::OutgoingMessage;
-use hexchesscore::{Board, Hexagon, Piece, Color};
+use hexchesscore::{Board, Color, Hexagon, Piece};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use warp::ws::Message;
@@ -55,10 +55,12 @@ pub fn setup_test_boards() -> (Board, Board) {
     (board, board2)
 }
 
-
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use hexchesscore::{get_all_valid_moves, Board, Color, Hexagon, Piece};
+    use random_bot::get_samples;
 
     use super::*;
 
@@ -110,8 +112,14 @@ mod tests {
                     board.current_player = color;
                     dbg!(color);
                     dbg!(board.current_player);
-                    let a_eval =
-                        alpha_beta_prune(&mut board, depth, f32::NEG_INFINITY, f32::INFINITY);
+                    let a_eval = alpha_beta_prune(
+                        &mut board,
+                        depth,
+                        f32::NEG_INFINITY,
+                        f32::INFINITY,
+                        Instant::now() + Duration::from_millis(100000),
+                    )
+                    .expect("timed out!");
                     dbg!(board.current_player);
                     let nega_eval = negamax(&mut board, depth);
                     dbg!(depth);
@@ -122,6 +130,18 @@ mod tests {
                     // assert!(a_eval == iid);
                 }
             }
+        }
+    }
+    #[test]
+    fn test_random_sampling() {
+        let n = 10;
+        let num_moves = 20;
+        let num_samples = 50;
+        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_moves, num_samples)).collect();
+        for sample in samples {
+            dbg!(&sample);
+            let total: usize = sample.iter().sum();
+            dbg!(total);
         }
     }
 }
