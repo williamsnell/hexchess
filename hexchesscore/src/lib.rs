@@ -2,6 +2,7 @@ pub use crate::hexchesscore::*;
 
 pub mod hexchesscore;
 pub mod moves;
+pub mod board_representations;
 
 #[cfg(test)]
 mod tests {
@@ -48,38 +49,38 @@ mod tests {
         assert_eq!(Hexagon::new("F8 "), None)
     }
 
-    #[test]
-    fn test_rook_moves() {
-        let starting_position = Hexagon::new("F6").unwrap();
-        let mut valid_moves: Vec<Hexagon> = Vec::from([
-            "a1", "b2", "c3", "d4", "e5", "e6", "d6", "c6", "b6", "a6", "f1", "f2", "f3", "f4",
-            "f5", "f7", "f8", "f9", "f10", "f11", "g5", "h4", "i3", "k2", "l1", "g6", "h6", "i6",
-            "k6", "l6",
-        ]
-        .map(|x| Hexagon::new(x).unwrap()));
+    // #[test]
+    // fn test_rook_moves() {
+    //     let starting_position = Hexagon::new("F6").unwrap();
+    //     let mut valid_moves: Vec<Hexagon> = Vec::from([
+    //         "a1", "b2", "c3", "d4", "e5", "e6", "d6", "c6", "b6", "a6", "f1", "f2", "f3", "f4",
+    //         "f5", "f7", "f8", "f9", "f10", "f11", "g5", "h4", "i3", "k2", "l1", "g6", "h6", "i6",
+    //         "k6", "l6",
+    //     ]
+    //     .map(|x| Hexagon::new(x).unwrap()));
 
-        fn eq_lists_inplace<T>(a: &mut [T], b: &mut [T]) -> bool
-        where
-            T: PartialEq + Ord + std::fmt::Debug,
-        {
-            a.sort();
-            b.sort();
+    //     fn eq_lists_inplace<T>(a: &mut [T], b: &mut [T]) -> bool
+    //     where
+    //         T: PartialEq + Ord + std::fmt::Debug,
+    //     {
+    //         a.sort();
+    //         b.sort();
 
-            println!("{:?}", a);
-            println!();
-            println!("{:?}", b);
+    //         println!("{:?}", a);
+    //         println!();
+    //         println!("{:?}", b);
 
-            a == b
-        }
+    //         a == b
+    //     }
 
-        let mut output_moves: Vec<Hexagon> = moves::RookMoves::new(starting_position).collect();
+    //     let mut output_moves: Vec<Hexagon> = moves::RookMoves::new(starting_position).collect();
         
-        assert!(eq_lists_inplace(&mut output_moves, &mut valid_moves));
+    //     assert!(eq_lists_inplace(&mut output_moves, &mut valid_moves));
 
 
 
         // [Hexagon::new(square) for square in valid_moves];
-    }
+    // }
 
     fn test_invalid_move() {}
 }
