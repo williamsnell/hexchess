@@ -1,7 +1,9 @@
 
 use futures::{SinkExt, StreamExt, TryFutureExt};
 
-use server::{session_handling, websocket_messaging};
+use server::{session_handling, websocket_messaging, debug};
+use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio;
 use tokio::sync::{mpsc, RwLock};
@@ -63,33 +65,44 @@ async fn handle_websocket_async(
 
 #[tokio::main]
 async fn main() {
-    // handle the page-serving side of the website
-    let default = warp::path::end().and(warp::fs::file("./server_files/hello.html"));
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 {
+        // special debug mode where we just send the board state right at the frontend
+        let mut path = PathBuf::new();
+        path.push(args[0].to_string());
 
-    let join = warp::path("join").and(warp::fs::file("./server_files/hello.html"));
+        debug::spawn_debug_server(path).await;
 
-    let pages = warp::fs::dir("./server_files/");
+    } else {
+        // handle the page-serving side of the website
+        let default = warp::path::end().and(warp::fs::file("./server_files/hello.html"));
+    
+        let join = warp::path("join").and(warp::fs::file("./server_files/hello.html"));
+    
+        let pages = warp::fs::dir("./server_files/");
+    
+        let sessions: Arc<RwLock<session_handling::SessionHandler>> = Arc::new(RwLock::new(session_handling::SessionHandler::new()));
+    
+        let sessions = warp::any().map(move || sessions.clone());
+    
+        let websocket =
+            warp::path("ws")
+                .and(warp::ws())
+                .and(sessions)
+                .map(|ws: warp::ws::Ws, sessions| {
+                    ws.on_upgrade(move |socket| handle_websocket_async(socket, sessions))
+                });
+                
+        let routes = pages
+            .or(join)
+            .or(websocket)
+            .or(default)
+            // serve 404s if the file doesn't exist and the client isn't asking for the default page
+            .or(warp::fs::file("./server_files/404.html"));
+    
+        warp::serve(routes)
+            .run(([127, 0, 0, 1], 7878))
+            .await;
+    }
 
-    let sessions: Arc<RwLock<session_handling::SessionHandler>> = Arc::new(RwLock::new(session_handling::SessionHandler::new()));
-
-    let sessions = warp::any().map(move || sessions.clone());
-
-    let websocket =
-        warp::path("ws")
-            .and(warp::ws())
-            .and(sessions)
-            .map(|ws: warp::ws::Ws, sessions| {
-                ws.on_upgrade(move |socket| handle_websocket_async(socket, sessions))
-            });
-
-    let routes = pages
-        .or(join)
-        .or(websocket)
-        .or(default)
-        // serve 404s if the file doesn't exist and the client isn't asking for the default page
-        .or(warp::fs::file("./server_files/404.html"));
-
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 7878))
-        .await;
 }

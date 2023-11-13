@@ -176,6 +176,8 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
+    use std::{path::PathBuf, fs::File, io::Write};
+
     use super::*;
     use pretty_assertions::{assert_eq};
 
@@ -203,8 +205,19 @@ mod tests {
         let board2 = bitboard.to_board();
         let bitboard2 = BitBoard::from_board(&board2);
 
+        output_board_representation(&board);
+        output_board_representation(&board2); 
+
+
+
         assert_eq!(&bitboard, &bitboard2);
 
         assert_eq!(&board.occupied_squares,&board2.occupied_squares);
+    }
+
+    fn output_board_representation(board: &Board) {
+        let mut f = File::create("../server/debug/board.json").expect("Couldn't open file");
+
+        write!(f, "{}", serde_json::to_string(&board).expect("couldn't serialize board")).expect("couldn't write to disk");
     }
 }

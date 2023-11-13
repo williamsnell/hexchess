@@ -5,6 +5,7 @@ use std::{
 
 pub mod session_handling;
 pub mod websocket_messaging;
+pub mod debug;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
