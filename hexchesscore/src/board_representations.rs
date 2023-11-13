@@ -95,7 +95,7 @@ impl BitBoard {
     }
 
     pub fn hexagon_from_bit_position(position: u32) -> Option<Hexagon> {
-                for (i, offset) in CUMULATIVE_HEXES.iter().enumerate().rev() {
+        for (i, offset) in CUMULATIVE_HEXES.iter().enumerate().rev() {
             if position > *offset - 1 {
                 return Some(Hexagon {
                     rank: i as u8,
@@ -151,7 +151,11 @@ impl BitBoard {
         let mut board = Board {
             occupied_squares: HashMap::<Hexagon, Piece>::new(),
             en_passant: None,
-            current_player: if self.current_player_is_white {Color::White} else {Color::Black},
+            current_player: if self.current_player_is_white {
+                Color::White
+            } else {
+                Color::Black
+            },
         };
         for color in [Color::Black, Color::White] {
             for piece_type in [
@@ -177,10 +181,10 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, fs::File, io::Write};
+    use std::{fs::File, io::Write, path::PathBuf};
 
     use super::*;
-    use pretty_assertions::{assert_eq};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_bit_representation() {
@@ -207,13 +211,11 @@ mod tests {
         let bitboard2 = BitBoard::from_board(&board2);
 
         // output_board_representation(&board);
-        output_board_representation(&board2); 
-
-
+        output_board_representation(&board2);
 
         assert_eq!(&bitboard, &bitboard2);
 
-        assert_eq!(&board.occupied_squares,&board2.occupied_squares);
+        assert_eq!(&board.occupied_squares, &board2.occupied_squares);
     }
 
     #[test]
@@ -227,6 +229,11 @@ mod tests {
     fn output_board_representation(board: &Board) {
         let mut f = File::create("../server/debug/board.json").expect("Couldn't open file");
 
-        write!(f, "{}", serde_json::to_string(&board).expect("couldn't serialize board")).expect("couldn't write to disk");
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(&board).expect("couldn't serialize board")
+        )
+        .expect("couldn't write to disk");
     }
 }
