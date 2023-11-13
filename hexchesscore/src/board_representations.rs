@@ -88,9 +88,7 @@ impl BitBoard {
     /// bit matching the relevant position in all of the BitBoard
     /// types' bit boards.
     pub fn bit_mask_from_hexagon(hex: Hexagon) -> SubBoard {
-        dbg!(&hex);
         let position = CUMULATIVE_HEXES[hex.rank as usize] + hex.file as u32;
-        dbg!(position);
         (2 as SubBoard).pow(position)
     }
 
