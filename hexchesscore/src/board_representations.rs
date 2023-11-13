@@ -90,14 +90,15 @@ impl BitBoard {
     pub fn bit_mask_from_hexagon(hex: Hexagon) -> SubBoard {
         dbg!(&hex);
         let position = CUMULATIVE_HEXES[hex.rank as usize] + hex.file as u32;
+        dbg!(position);
         (2 as SubBoard).pow(position)
     }
 
     pub fn hexagon_from_bit_position(position: u32) -> Option<Hexagon> {
-        for (i, offset) in CUMULATIVE_HEXES.iter().enumerate().rev() {
-            if position > *offset {
+                for (i, offset) in CUMULATIVE_HEXES.iter().enumerate().rev() {
+            if position > *offset - 1 {
                 return Some(Hexagon {
-                    rank: (i) as u8,
+                    rank: i as u8,
                     file: (position - offset) as u8,
                 });
             }
@@ -205,7 +206,7 @@ mod tests {
         let board2 = bitboard.to_board();
         let bitboard2 = BitBoard::from_board(&board2);
 
-        output_board_representation(&board);
+        // output_board_representation(&board);
         output_board_representation(&board2); 
 
 
@@ -213,6 +214,14 @@ mod tests {
         assert_eq!(&bitboard, &bitboard2);
 
         assert_eq!(&board.occupied_squares,&board2.occupied_squares);
+    }
+
+    #[test]
+    fn test_hex_to_bit_to_hex() {
+        let hex = Hexagon::new("F11").unwrap();
+        dbg!(BitBoard::bit_mask_from_hexagon(hex));
+        // dbg!(BitBoard::hexagon_from_bit_position(BitBoard::bit_mask_from_hexagon(hex)));
+        dbg!(BitBoard::hexagon_from_bit_position(51));
     }
 
     fn output_board_representation(board: &Board) {
