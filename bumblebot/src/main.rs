@@ -130,7 +130,11 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket) {
 #[tokio::main]
 async fn main() {
     let mut scoreboard = ScoreBoard::new();
-    tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
+    tree_search(&mut Board::setup_default_board(), 1000, &mut scoreboard, 100);
+    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
+    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
+    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
+    
 
     // spool up a bot that will respond to a board state with its
     // suggested move
@@ -138,31 +142,31 @@ async fn main() {
     dbg!(&args);
 
     
-    if args.len() > 1 {
-        let (mut socket, response) =
-            connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
+    // if args.len() > 1 {
+    //     let (mut socket, response) =
+    //         connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
     
-        let user_id = Uuid::new_v4();
+    //     let user_id = Uuid::new_v4();
 
-        let message = IncomingMessage::JoinGame {
-            user_id: user_id.to_string(),
-            game_id: args[1].to_string(),
-        };
+    //     let message = IncomingMessage::JoinGame {
+    //         user_id: user_id.to_string(),
+    //         game_id: args[1].to_string(),
+    //     };
 
-        // initialize the session_id with something useless
-        let mut current_color = Color::Black;
+    //     // initialize the session_id with something useless
+    //     let mut current_color = Color::Black;
 
-        socket.send(tungstenite::Message::Text(
-            serde_json::to_string(&message).expect("Couldn't serialize message"),
-        ));
+    //     socket.send(tungstenite::Message::Text(
+    //         serde_json::to_string(&message).expect("Couldn't serialize message"),
+    //     ));
 
-        loop {
-            let msg = socket.read().expect("Error reading WS message");
-            handle_message(msg, user_id, &mut current_color, &mut socket).await;
-        }
-    } else {
-        make_a_move(&mut Board::setup_default_board(), 100000);
-    }
+    //     loop {
+    //         let msg = socket.read().expect("Error reading WS message");
+    //         handle_message(msg, user_id, &mut current_color, &mut socket).await;
+    //     }
+    // } else {
+    //     make_a_move(&mut Board::setup_default_board(), 100000);
+    // }
     // let websocket =
     //     warp::path("ws")
     //         .and(warp::ws())

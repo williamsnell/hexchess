@@ -137,12 +137,21 @@ mod tests {
         let n = 1000;
         let num_moves = 20;
         let num_samples = 50;
-        let samples: Vec<Vec<usize>> = (0..n).map(|x| get_samples(num_samples, (0..num_moves).collect())).collect();
+        let samples: Vec<Vec<usize>> = (0..n)
+            .map(|x| {
+                get_samples(
+                    num_samples as f32,
+                    (0..num_moves).map(|x| x as f32).collect(),
+                )
+            })
+            .collect();
         for sample in &samples {
             let total: usize = sample.iter().sum();
-            assert!(total == num_samples);
+            assert!(total == num_samples as usize);
         }
-        let stats = samples.iter().fold(vec![0; num_moves], |acc, s| acc.iter().zip(s).map(|(x, y)| x + y).collect());
+        let stats = samples.iter().fold(vec![0; num_moves], |acc, s| {
+            acc.iter().zip(s).map(|(x, y)| x + y).collect()
+        });
         dbg!(&stats);
     }
 }
