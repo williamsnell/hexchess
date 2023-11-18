@@ -6,7 +6,7 @@ pub mod board_representations;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, fs::File, io::Write};
 
     use super::*;
 
@@ -19,10 +19,9 @@ mod tests {
 
         default_board.occupied_squares.insert(
             Hexagon::new("A1").unwrap(),
-            Piece {
+           Piece {
                 piece_type: PieceType::Pawn,
-                color: Color::White,
-            },
+                color: Color::White,         },
         );
 
         default_board
@@ -31,7 +30,7 @@ mod tests {
     // #[test]
     // fn test_valid_move() {
     //     let result = validate_move(Movement(Hexagon("F", 5), Hexagon("F", 6)), default_board);
-    // }
+   // }
     #[test]
     fn test_new_hex() {
         assert_eq!(Hexagon::new("F8").unwrap().rank, hexchesscore::rank_char_to_int('f').unwrap());
@@ -46,41 +45,65 @@ mod tests {
         assert_eq!(Hexagon::new("M8"), None);
         assert_eq!(Hexagon::new("A13"), None);
         assert_eq!(Hexagon::new(" F8 "), None);
-        assert_eq!(Hexagon::new("F8 "), None)
+        assert_eq!(Hexagon::new("F8"), None);
     }
 
-    // #[test]
-    // fn test_rook_moves() {
-    //     let starting_position = Hexagon::new("F6").unwrap();
-    //     let mut valid_moves: Vec<Hexagon> = Vec::from([
-    //         "a1", "b2", "c3", "d4", "e5", "e6", "d6", "c6", "b6", "a6", "f1", "f2", "f3", "f4",
-    //         "f5", "f7", "f8", "f9", "f10", "f11", "g5", "h4", "i3", "k2", "l1", "g6", "h6", "i6",
-    //         "k6", "l6",
-    //     ]
-    //     .map(|x| Hexagon::new(x).unwrap()));
+    #[test]
+    fn test_check_for_mates_detects_stalemate() {
+        let mut board = Board::new();
 
-    //     fn eq_lists_inplace<T>(a: &mut [T], b: &mut [T]) -> bool
-    //     where
-    //         T: PartialEq + Ord + std::fmt::Debug,
-    //     {
-    //         a.sort();
-    //         b.sort();
+        board.occupied_squares.insert(Hexagon::new("A4").unwrap(), Piece { piece_type: PieceType::King, color: Color::White });
 
-    //         println!("{:?}", a);
-    //         println!();
-    //         println!("{:?}", b);
+        board.occupied_squares.insert(Hexagon::new("C4").unwrap(), Piece { piece_type: PieceType::King, color: Color::Black });
+  
+        board.occupied_squares.insert(Hexagon::new("C7").unwrap(), Piece { piece_type: PieceType::Rook, color: Color::Black });
 
-    //         a == b
-    //     }
-
-    //     let mut output_moves: Vec<Hexagon> = moves::RookMoves::new(starting_position).collect();
+        output_board_representation(&board);
         
-    //     assert!(eq_lists_inplace(&mut output_moves, &mut valid_moves));
+        assert!(matches!(check_for_mates(&mut board).unwrap(), Mate::Stalemate));
+    }
+    #[test]
+    fn test_check_for_mates_detects_checkmate() {
+        let mut board = Board::new();
 
+        board.occupied_squares.insert(Hexagon::new("A4").unwrap(), Piece { piece_type: PieceType::King, color: Color::White });
 
+        board.occupied_squares.insert(Hexagon::new("C4").unwrap(), Piece { piece_type: PieceType::King, color: Color::Black });
+  
+        board.occupied_squares.insert(Hexagon::new("A6").unwrap(), Piece { piece_type: PieceType::Rook, color: Color::Black });
 
-        // [Hexagon::new(square) for square in valid_moves];
-    // }
+        output_board_representation(&board);
+        
+        assert!(matches!(check_for_mates(&mut board).unwrap(), Mate::Checkmate));
+    }
+
+    #[test]
+    fn test_check_for_mates_detects_nothing() {
+        let mut board = Board::new();
+
+        board.occupied_squares.insert(Hexagon::new("A4").unwrap(), Piece { piece_type: PieceType::King, color: Color::White });
+
+        board.occupied_squares.insert(Hexagon::new("C4").unwrap(), Piece { piece_type: PieceType::King, color: Color::Black });
+  
+        board.occupied_squares.insert(Hexagon::new("C8").unwrap(), Piece { piece_type: PieceType::Rook, color: Color::Black });
+
+        output_board_representation(&board);
+        
+        assert!(check_for_mates(&mut board).is_none());
+    }
+
+      
+    
+    fn output_board_representation(board: &Board) {
+        let mut f = File::create("../server/debug/board.json").expect("Couldn't open file");
+
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(&board).expect("couldn't serialize board")
+        )
+        .expect("couldn't write to disk");
+    }
 
     fn test_invalid_move() {}
 }

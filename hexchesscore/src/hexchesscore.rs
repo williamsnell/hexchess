@@ -8,7 +8,7 @@ use crate::moves::{self, get_rank_length, KnightMoves, SlidingMoves};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PieceType {
-    Pawn,
+ Pawn,
     Rook,
     Knight,
     Bishop,
@@ -151,6 +151,13 @@ impl Board {
             serde_json::from_str(&DEFAULT_BOARD).expect("Invalid JSON format");
         Board {
             occupied_squares: moves,
+            en_passant: None,
+            current_player: Color::White,
+        }
+    }
+    pub fn new() -> Board {
+        Board {
+            occupied_squares: HashMap::<Hexagon, Piece>::new(),
             en_passant: None,
             current_player: Color::White,
         }
@@ -438,7 +445,7 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
         let (valid_moves, _, _) = get_valid_moves(&start_hexagon, board);
 
         // If any valid move exists, the player is not in checkmate
-        if !valid_moves.is_empty() {
+                if !valid_moves.is_empty() {
             return None;
         }
     }
@@ -452,15 +459,11 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
     if let Some(attacking_pieces) =
         get_attacking_pieces(current_player_color.invert(), board, &king_hex)
     {
-        if attacking_pieces.is_empty() {
-            // There are no attacking pieces, indicating a stalemate
-            return Some(Mate::Stalemate);
-        } else {
-            // The king has no valid moves and is under attack, indicating a checkmate
-            return Some(Mate::Checkmate);
-        }
+        // get_attacking_pieces will only return Some if there are attacking pieces. Hence, 
+        // the king has no valid moves and is under attack, indicating a checkmate
+        return Some(Mate::Checkmate);
     } else {
-        None
+        return Some(Mate::Stalemate);
     }
 }
 
