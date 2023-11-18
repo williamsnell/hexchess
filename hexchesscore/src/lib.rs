@@ -26,11 +26,7 @@ mod tests {
 
         default_board
     }
-
-    // #[test]
-    // fn test_valid_move() {
-    //     let result = validate_move(Movement(Hexagon("F", 5), Hexagon("F", 6)), default_board);
-   // }
+    
     #[test]
     fn test_new_hex() {
         assert_eq!(Hexagon::new("F8").unwrap().rank, hexchesscore::rank_char_to_int('f').unwrap());
