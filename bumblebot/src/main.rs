@@ -1,19 +1,29 @@
-use std::{env, net::TcpStream, thread, time::Duration};
+use std::{
+    env,
+    net::TcpStream,
+    sync::{Arc, Mutex, RwLock},
+    thread::{self, sleep},
+    time::{Duration, Instant},
+};
 
-use futures::{SinkExt, StreamExt, TryFutureExt, channel::mpsc::UnboundedSender};
-use hexchesscore::{Color, Board};
-use url::Url;
-use warp::Filter;
-use warp::ws::Message;
+use futures::{channel::mpsc::UnboundedSender, SinkExt, StreamExt, TryFutureExt};
+use hexchesscore::{Board, Color};
 use tokio::{self, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use url::Url;
+use warp::ws::Message;
+use warp::Filter;
 
 use tungstenite::{connect, stream::MaybeTlsStream, WebSocket};
 use uuid::{self, Uuid};
 
-use api::{PlayerColor, IncomingMessage, OutgoingMessage};
+use api::{IncomingMessage, OutgoingMessage, PlayerColor};
 
-use bumblebot::{bot_mind::{alpha_beta_prune, iterative_deepening, make_a_move}, setup_test_boards, random_bot::{tree_search, ScoreBoard}};
+use bumblebot::{
+    bot_mind::{alpha_beta_prune, iterative_deepening},
+    random_bot::{tree_search, ScoreBoard, make_a_move},
+    setup_test_boards,
+};
 
 fn match_player_color(color: PlayerColor) -> Color {
     match color {
@@ -46,7 +56,7 @@ async fn handle_message(
         }
         OutgoingMessage::BoardState { mut board } => {
             if board.current_player == *current_color {
-                let intended_move = make_a_move(&mut board, 50);
+                let intended_move = make_a_move(&mut board, 10000);
                 let _ = socket.send(tungstenite::Message::Text(
                     serde_json::to_string(&IncomingMessage::RegisterMove {
                         user_id: user_id.to_string(),
@@ -76,7 +86,6 @@ pub fn spawn_bot(tx: &mpsc::UnboundedSender<Message>) {
 
 async fn handle_websocket_async(socket: warp::ws::WebSocket) {
     let (mut ws_tx, mut ws_rx) = socket.split();
-
 
     let (tx, rx) = mpsc::unbounded_channel();
     // turn the normal receiver into a stream
@@ -108,11 +117,9 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket) {
         tx.send(warp::ws::Message::text(success_message)).unwrap();
     }
 
-    thread::spawn(
-        move || {
-            spawn_bot(&tx);
-        }
-    );
+    thread::spawn(move || {
+        spawn_bot(&tx);
+    });
 
     // while let Some(result) = ws_rx.next().await {
     //     let message = match result {
@@ -127,57 +134,45 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket) {
     //     }
     // }
 }
+
 #[tokio::main]
 async fn main() {
-    let mut scoreboard = ScoreBoard::new();
-    tree_search(&mut Board::setup_default_board(), 1000, &mut scoreboard, 100);
-    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
-    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
-    // tree_search(&mut Board::setup_default_board(), 200, &mut scoreboard, 100);
-    
-
-    // spool up a bot that will respond to a board state with its
-    // suggested move
     let args: Vec<String> = env::args().collect();
     dbg!(&args);
 
-    
-    // if args.len() > 1 {
-    //     let (mut socket, response) =
-    //         connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
-    
-    //     let user_id = Uuid::new_v4();
+    if args.len() > 1 {
+        let (mut socket, response) =
+            connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
 
-    //     let message = IncomingMessage::JoinGame {
-    //         user_id: user_id.to_string(),
-    //         game_id: args[1].to_string(),
-    //     };
+        let user_id = Uuid::new_v4();
 
-    //     // initialize the session_id with something useless
-    //     let mut current_color = Color::Black;
+        let message = IncomingMessage::JoinGame {
+            user_id: user_id.to_string(),
+            game_id: args[1].to_string(),
+        };
 
-    //     socket.send(tungstenite::Message::Text(
-    //         serde_json::to_string(&message).expect("Couldn't serialize message"),
-    //     ));
+        // initialize the session_id with something useless
+        let mut current_color = Color::Black;
 
-    //     loop {
-    //         let msg = socket.read().expect("Error reading WS message");
-    //         handle_message(msg, user_id, &mut current_color, &mut socket).await;
-    //     }
-    // } else {
-    //     make_a_move(&mut Board::setup_default_board(), 100000);
-    // }
-    // let websocket =
-    //     warp::path("ws")
-    //         .and(warp::ws())
-    //         .map(|ws: warp::ws::Ws| {
-    //             ws.on_upgrade(move |socket| handle_websocket_async(socket))
-    //         });
+        socket.send(tungstenite::Message::Text(
+            serde_json::to_string(&message).expect("Couldn't serialize message"),
+        ));
 
+        loop {
+            let msg = socket.read().expect("Error reading WS message");
+            handle_message(msg, user_id, &mut current_color, &mut socket).await;
+        }
+    } else {
+        make_a_move(&mut Board::setup_default_board(), 100000);
+    }
+    let websocket =
+        warp::path("ws")
+            .and(warp::ws())
+            .map(|ws: warp::ws::Ws| {
+                ws.on_upgrade(move |socket| handle_websocket_async(socket))
+            });
 
-    // warp::serve(websocket)
-    //     .run(([127, 0, 0, 1], 7878))
-    //     .await;
-
+    warp::serve(websocket)
+        .run(([127, 0, 0, 1], 7878))
+        .await;
 }
-

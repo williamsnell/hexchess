@@ -1,9 +1,17 @@
 use core::num;
 use rand::{thread_rng, Rng};
 use rand_distr::{Distribution, WeightedIndex};
-use std::{collections::HashMap, os::unix::thread, sync::Mutex};
+use rayon::prelude::*;
+use std::{
+    collections::HashMap,
+    os::unix::thread,
+    sync::{Arc, Mutex, RwLock},
+    thread::Thread, time::{Instant, Duration},
+};
 
 const EXPLORATION_PARAMETER: f32 = 1.414;
+
+const SPAWN_THREAD_CUTOFF: usize = 0;
 
 use hexchesscore::{
     apply_move, check_for_mates, get_all_valid_moves, revert_move, Board, Color, Move,
@@ -26,33 +34,39 @@ use hexchesscore::{
 
 #[derive(Debug)]
 pub struct ScoreBoard {
-    children: HashMap<Move, ScoreBoard>,
-    score: f32,
-    tally: usize,
+    pub children: HashMap<Move, Arc<RwLock<ScoreBoard>>>,
+    pub score: f32,
+    pub tally: usize,
 }
 
 impl ScoreBoard {
     pub fn new() -> ScoreBoard {
         ScoreBoard {
-            children: HashMap::<Move, ScoreBoard>::new(),
+            children: HashMap::<Move, Arc<RwLock<ScoreBoard>>>::new(),
             score: 0.0,
-            tally: 1, // initialize to 0 to prevent div by 0 and log(0)
+            tally: 1, // initialize to 1 to prevent div by 0 and log(0)
         }
     }
     // handle creating a new scoreboard for this node if one doesn't already exist,
-    pub fn retrieve_scoreboard(&mut self, movement: &Move) -> &mut ScoreBoard {
+    pub fn retrieve_scoreboard(&mut self, movement: &Move) -> Arc<RwLock<ScoreBoard>> {
         if !self.children.contains_key(movement) {
-            self.children.insert(*movement, ScoreBoard::new());
+            self.children
+                .insert(*movement, Arc::new(RwLock::new(ScoreBoard::new())));
         }
-        self.children
-            .get_mut(&movement)
-            .expect("Scoreboard should exist, but doesn't")
+        Arc::clone(
+            self.children
+                .get(&movement)
+                .expect("Scoreboard should exist, but doesn't"),
+        )
     }
     pub fn update_scores(&mut self, num_samples: usize) {
         self.tally += num_samples;
         // this node's score is the sum of all its children's
         // scores
-        self.score = self.children.values().fold(0.0, |acc, e| acc + e.score);
+        self.score = self
+            .children
+            .values()
+            .fold(0.0, |acc, e| acc + e.read().unwrap().score);
     }
     pub fn calculate_bias(&self) -> Vec<f32> {
         // Assuming here that the hashmap will have the same order
@@ -60,10 +74,25 @@ impl ScoreBoard {
         self.children
             .values()
             .map(|x| {
-                x.score / (x.tally as f32)
-                    + EXPLORATION_PARAMETER * ((self.tally as f32).log2() / x.tally as f32).sqrt()
+                let y = x.read().unwrap();
+                y.score / (y.tally as f32)
+                    + EXPLORATION_PARAMETER * ((self.tally as f32).log2() / y.tally as f32).sqrt() 
+                    // add a very small extra term so we don't get all weights being zero
+                    + 1e-8
             })
             .collect()
+    }
+    pub fn pick_move(&self) -> Option<Move> {
+        let mut max_score = f32::MIN;
+        let mut best_move = None;
+        for (movement, scoreboard) in &self.children {
+            let score = scoreboard.read().unwrap().score;
+            if score > max_score {
+                max_score = score;
+                best_move = Some(*movement);
+            }
+        }
+        best_move
     }
 }
 
@@ -106,10 +135,19 @@ pub fn get_samples(num_samples: f32, bias: Vec<f32>) -> Vec<usize> {
     choices
 }
 
+// We want to process all of the remaining moves
+// if a given move has a lot of samples, we would like to
+// give it its own thread.
+
+// Procedure:
+// fn process(list_of_tasks) {
+//      for task in tasks
+//}
+
 pub fn tree_search(
     board: &mut Board,
     num_searches: usize,
-    scoreboard: &mut ScoreBoard,
+    scoreboard: Arc<RwLock<ScoreBoard>>,
     max_depth: u16,
 ) {
     let moves = get_all_valid_moves(board);
@@ -118,7 +156,6 @@ pub fn tree_search(
     if num_moves == 0 {
         // we have a game ending position
         let end_type = check_for_mates(board);
-        dbg!("here");
 
         if let Some(end_type) = end_type {
             let score: f32 = match end_type {
@@ -126,9 +163,11 @@ pub fn tree_search(
                 hexchesscore::Mate::Stalemate => 3.0 / 4.0,
             };
             let modifier = match board.current_player {
-                Color::White => 1.,
-                Color::Black => -1.,
+                Color::White => -1.,
+                Color::Black => 1.,
             };
+            let mut scoreboard = scoreboard.write().unwrap();
+            // scoreboard.score += score;
             scoreboard.score += score * modifier;
         }
     } else {
@@ -136,30 +175,76 @@ pub fn tree_search(
         // will all be 0
         let bias: Vec<f32>;
         // otherwise, calculate them
-        if scoreboard.children.len() == 0 {
+        if scoreboard.read().unwrap().children.len() == 0 {
             bias = vec![1.0; num_moves];
-        }
-        else {
-            bias = scoreboard.calculate_bias();
+        } else {
+            bias = scoreboard.read().unwrap().calculate_bias();
         }
         let samples: Vec<usize> = get_samples(num_searches as f32, bias);
 
-        for (movement, sample) in moves.iter().zip(samples) {
-            // set up the new scoreboard, or retrieve one that already exists.
-            // do this before checking we actually sampled this move, so our 
-            // biasing algorithm doesn't fall over later
-            let sub_scoreboard = scoreboard.retrieve_scoreboard(movement);
+        // split up the high and low sample count moves
+        let high_sample_moves: Vec<(&Move, &usize)> = moves
+            .iter()
+            .zip(&samples)
+            .filter(|&(_, sample)| sample > &SPAWN_THREAD_CUTOFF)
+            .collect();
 
-            if (sample > 0) & (max_depth > 0) {
-                let (board, taken_piece) = apply_move(board, *movement);
-                // todo we need to invert the score each time we propagate it upward
-                tree_search(board, sample, sub_scoreboard, max_depth - 1);
+        let low_sample_moves: Vec<(&Move, &usize)> = moves
+            .iter()
+            .zip(&samples)
+            .filter(|&(_, sample)| sample <= &SPAWN_THREAD_CUTOFF)
+            .collect();
 
-                revert_move(board, *movement, taken_piece);
-            }
-        }
+        let _: Vec<()> = high_sample_moves
+            .par_iter()
+            .map(|&(movement, &sample)| {
+                let mut sub_scoreboard = scoreboard.write().unwrap().retrieve_scoreboard(movement);
+
+                if (sample > 0) & (max_depth > 0) {
+                    let mut board = board.clone();
+                    let (board, taken_piece) = apply_move(&mut board, *movement);
+
+                    tree_search(board, sample, sub_scoreboard, max_depth - 1);
+
+                    revert_move(board, *movement, taken_piece);
+                }
+            })
+            .collect();
+
+        // for low sample moves, we do the same thing as above, but without spawning a new thread
+        // and cloning the board
+        let _: Vec<()> = low_sample_moves
+            .iter()
+            .map(|&(movement, &sample)| {
+                let mut sub_scoreboard = scoreboard.write().unwrap().retrieve_scoreboard(movement);
+
+                if (sample > 0) & (max_depth > 0) {
+                    let (board, taken_piece) = apply_move(board, *movement);
+
+                    tree_search(board, sample, sub_scoreboard, max_depth - 1);
+
+                    revert_move(board, *movement, taken_piece);
+                }
+            })
+            .collect();
+
         // we've got the results back from all of our samples, so lets start
         // updating the scoreboard
-        scoreboard.update_scores(num_searches);
+        scoreboard.write().unwrap().update_scores(num_searches);
     }
+}
+
+// TODO: keep the scoreboard between moves and continously run search until asked to make a move
+pub fn make_a_move(board: &mut Board, timeout_ms: u64) -> Move {
+    let end: Instant = Instant::now() + Duration::from_millis(timeout_ms);
+
+    let mut scoreboard = Arc::new(RwLock::new(ScoreBoard::new()));
+
+    while Instant::now() < end {
+        tree_search(board, 200, scoreboard.clone(), 60);
+        dbg!(&scoreboard.read().unwrap().score);
+
+    }
+    scoreboard.clone().read().unwrap().pick_move().expect("didn't pick a move")
+    
 }
