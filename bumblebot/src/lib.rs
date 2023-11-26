@@ -57,7 +57,7 @@ pub fn setup_test_boards() -> (Board, Board) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    use std::{time::Instant, fs::File, io::Write};
 
     use hexchesscore::{get_all_valid_moves, Board, Color, Hexagon, Piece};
     use random_bot::get_samples;
@@ -153,5 +153,52 @@ mod tests {
             acc.iter().zip(s).map(|(x, y)| x + y).collect()
         });
         dbg!(&stats);
+    }
+
+    #[test]
+    fn test_tree_search() {
+        let mut board = Board::setup_default_board();
+        random_bot::make_a_move(&mut board, 100000);
+    }
+
+    #[test]
+    fn test_tree_search_finds_checkmate() {
+        let mut board = Board::new();
+        board.occupied_squares.insert(
+            Hexagon::new("D2").unwrap(),
+            Piece {
+                piece_type: hexchesscore::PieceType::Queen,
+                color: Color::Black,
+            },
+        );
+        board.occupied_squares.insert(
+            Hexagon::new("C6").unwrap(),
+            Piece {
+                piece_type: hexchesscore::PieceType::King,
+                color: Color::Black,
+            },
+        );
+        board.occupied_squares.insert(
+            Hexagon::new("A4").unwrap(),
+            Piece {
+                piece_type: hexchesscore::PieceType::King,
+                color: Color::White,
+            },
+        );
+        board.current_player = Color::Black;
+        output_board_representation(&board);
+        
+        dbg!(random_bot::make_a_move(&mut board, 1000));
+    }
+    
+    fn output_board_representation(board: &Board) {
+        let mut f = File::create("../server/debug/board.json").expect("Couldn't open file");
+
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(&board).expect("couldn't serialize board")
+        )
+        .expect("couldn't write to disk");
     }
 }

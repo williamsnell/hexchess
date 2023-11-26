@@ -6,12 +6,12 @@ use std::{
     collections::HashMap,
     os::unix::thread,
     sync::{Arc, Mutex, RwLock},
-    thread::Thread, time::{Instant, Duration},
+    thread::{Thread, current, sleep}, time::{Instant, Duration}, fs::File, io::Write,
 };
 
 const EXPLORATION_PARAMETER: f32 = 1.414;
 
-const SPAWN_THREAD_CUTOFF: usize = 0;
+const SPAWN_THREAD_CUTOFF: u16 = 0;
 
 use hexchesscore::{
     apply_move, check_for_mates, get_all_valid_moves, revert_move, Board, Color, Move,
@@ -35,15 +35,17 @@ use hexchesscore::{
 #[derive(Debug)]
 pub struct ScoreBoard {
     pub children: HashMap<Move, Arc<RwLock<ScoreBoard>>>,
-    pub score: f32,
-    pub tally: usize,
+    pub player_score: u16,
+    pub opponent_score: u16,
+    pub tally: u16,
 }
 
 impl ScoreBoard {
     pub fn new() -> ScoreBoard {
         ScoreBoard {
             children: HashMap::<Move, Arc<RwLock<ScoreBoard>>>::new(),
-            score: 0.0,
+            player_score: 0,
+            opponent_score: 0,
             tally: 1, // initialize to 1 to prevent div by 0 and log(0)
         }
     }
@@ -59,14 +61,18 @@ impl ScoreBoard {
                 .expect("Scoreboard should exist, but doesn't"),
         )
     }
-    pub fn update_scores(&mut self, num_samples: usize) {
+    pub fn update_scores(&mut self, num_samples: u16) {
         self.tally += num_samples;
-        // this node's score is the sum of all its children's
-        // scores
-        self.score = self
+        // opponent becomes player and vice versa, and their score is propagated
+        // upwards from the sub simulations
+        self.player_score = self
             .children
             .values()
-            .fold(0.0, |acc, e| acc + e.read().unwrap().score);
+            .fold(0, |acc, e| acc + e.read().unwrap().opponent_score);
+        self.opponent_score = self
+        .children
+        .values()
+        .fold(0, |acc, e| acc + e.read().unwrap().player_score);
     }
     pub fn calculate_bias(&self) -> Vec<f32> {
         // Assuming here that the hashmap will have the same order
@@ -75,20 +81,20 @@ impl ScoreBoard {
             .values()
             .map(|x| {
                 let y = x.read().unwrap();
-                y.score / (y.tally as f32)
-                    + EXPLORATION_PARAMETER * ((self.tally as f32).log2() / y.tally as f32).sqrt() 
-                    // add a very small extra term so we don't get all weights being zero
-                    + 1e-8
+                (y.player_score - y.opponent_score) as f32 / (y.tally as f32)
+                    + EXPLORATION_PARAMETER * ((self.tally as f32).log2() / y.tally as f32).sqrt()
             })
             .collect()
     }
     pub fn pick_move(&self) -> Option<Move> {
-        let mut max_score = f32::MIN;
+        let mut highest_bias = f32::MIN;
         let mut best_move = None;
-        for (movement, scoreboard) in &self.children {
-            let score = scoreboard.read().unwrap().score;
-            if score > max_score {
-                max_score = score;
+        let bias = self.calculate_bias();
+        for ((movement, scoreboard), bias) in self.children.iter().zip(bias) {
+            let count = scoreboard.read().unwrap().tally;
+            dbg!(movement, count, bias);
+            if bias > highest_bias {
+                highest_bias = bias;
                 best_move = Some(*movement);
             }
         }
@@ -98,37 +104,43 @@ impl ScoreBoard {
 
 // tuning parameter for the randomness - bigger divisor gives more smoothness at higher
 // computational cost.
-const DIVISOR: usize = 4;
+const DIVISOR: u16 = 4;
 /// See the writeup in docs/sampling/notes.md
 /// Will return a vec of equal length to bias -
 /// i.e. bias must match num_moves
-pub fn get_samples(num_samples: f32, bias: Vec<f32>) -> Vec<usize> {
+pub fn get_samples(num_samples: f32, bias: Vec<f32>) -> Vec<u16> {
     let b_sum: f32 = bias.iter().sum();
     // do a best-attempt at matching the bias distribution with integer number of samples
-    let mut choices: Vec<usize> = bias
+    let mut choices: Vec<u16> = bias
         .iter()
-        .map(|b| (num_samples * b / b_sum) as usize)
+        .map(|b| (num_samples * b / b_sum) as u16)
         .collect();
 
     // build a distribution of where our best-attempt is furthest from our desired distribution
-    let remainder_bias: Vec<usize> = bias
+    let remainder_bias: Vec<f32> = bias
         .iter()
-        .map(|b| (num_samples * b % b_sum) as usize)
+        .map(|b| num_samples * (b % b_sum))
         .collect();
-    let mut remainder = (num_samples as usize) - choices.iter().sum::<usize>();
+    // let debg: Vec<usize> = bias.iter().map(|b| (num_samples * (b % b_sum)).max(1e-4) as usize).collect();
+    let mut remainder = (num_samples as u16) - choices.iter().sum::<u16>();
 
     let mut rng = thread_rng();
 
     // now, divide up the remainder by the bias
     if remainder > 0 {
-        let index =
-            WeightedIndex::new(remainder_bias).expect("Failed to initialize biased sampler");
-
-        while remainder > 0 {
-            let allocated = (thread_rng().gen_range(1..remainder + 1) + (DIVISOR - 1)) / DIVISOR;
-            choices[index.sample(&mut rng)] += allocated;
-
-            remainder -= allocated;
+        if remainder_bias.len() == 1 {
+            choices[0] += remainder;
+        }
+        else {
+            let index =
+                WeightedIndex::new(remainder_bias).expect("Failed to initialize biased sampler");
+    
+            while remainder > 0 {
+                let allocated = (thread_rng().gen_range(1..remainder + 1) + (DIVISOR - 1)) / DIVISOR;
+                choices[index.sample(&mut rng)] += allocated;
+    
+                remainder -= allocated;
+            }
         }
     }
 
@@ -146,29 +158,24 @@ pub fn get_samples(num_samples: f32, bias: Vec<f32>) -> Vec<usize> {
 
 pub fn tree_search(
     board: &mut Board,
-    num_searches: usize,
+    num_searches: u16,
     scoreboard: Arc<RwLock<ScoreBoard>>,
     max_depth: u16,
 ) {
     let moves = get_all_valid_moves(board);
-    let num_moves: usize = moves.len();
+    let num_moves: u16 = moves.len() as u16;
 
     if num_moves == 0 {
         // we have a game ending position
         let end_type = check_for_mates(board);
 
         if let Some(end_type) = end_type {
-            let score: f32 = match end_type {
-                hexchesscore::Mate::Checkmate => 1.0,
-                hexchesscore::Mate::Stalemate => 3.0 / 4.0,
-            };
-            let modifier = match board.current_player {
-                Color::White => -1.,
-                Color::Black => 1.,
+            let score: u16 = match end_type {
+                hexchesscore::Mate::Checkmate => 4,
+                hexchesscore::Mate::Stalemate => 3, // stalemate is 3/4 of a win
             };
             let mut scoreboard = scoreboard.write().unwrap();
-            // scoreboard.score += score;
-            scoreboard.score += score * modifier;
+            scoreboard.opponent_score += score;
         }
     } else {
         // if we haven't yet traversed this nodes' children, our biases
@@ -176,20 +183,20 @@ pub fn tree_search(
         let bias: Vec<f32>;
         // otherwise, calculate them
         if scoreboard.read().unwrap().children.len() == 0 {
-            bias = vec![1.0; num_moves];
+            bias = vec![1.0; num_moves.into()];
         } else {
             bias = scoreboard.read().unwrap().calculate_bias();
         }
-        let samples: Vec<usize> = get_samples(num_searches as f32, bias);
+        let samples: Vec<u16> = get_samples(num_searches as f32, bias);
 
         // split up the high and low sample count moves
-        let high_sample_moves: Vec<(&Move, &usize)> = moves
+        let high_sample_moves: Vec<(&Move, &u16)> = moves
             .iter()
             .zip(&samples)
             .filter(|&(_, sample)| sample > &SPAWN_THREAD_CUTOFF)
             .collect();
 
-        let low_sample_moves: Vec<(&Move, &usize)> = moves
+        let low_sample_moves: Vec<(&Move, &u16)> = moves
             .iter()
             .zip(&samples)
             .filter(|&(_, sample)| sample <= &SPAWN_THREAD_CUTOFF)
@@ -203,6 +210,12 @@ pub fn tree_search(
                 if (sample > 0) & (max_depth > 0) {
                     let mut board = board.clone();
                     let (board, taken_piece) = apply_move(&mut board, *movement);
+
+                    // if max_depth == 300 {
+                    //     output_board_representation(&board);
+                    //     dbg!(scoreboard.read().unwrap().player_score);
+                    //     dbg!(scoreboard.read().unwrap().opponent_score);
+                    // }
 
                     tree_search(board, sample, sub_scoreboard, max_depth - 1);
 
@@ -238,13 +251,23 @@ pub fn tree_search(
 pub fn make_a_move(board: &mut Board, timeout_ms: u64) -> Move {
     let end: Instant = Instant::now() + Duration::from_millis(timeout_ms);
 
-    let mut scoreboard = Arc::new(RwLock::new(ScoreBoard::new()));
+    let scoreboard = Arc::new(RwLock::new(ScoreBoard::new()));
 
     while Instant::now() < end {
-        tree_search(board, 200, scoreboard.clone(), 60);
-        dbg!(&scoreboard.read().unwrap().score);
-
+        tree_search(board, 100, scoreboard.clone(), 1500);
+        dbg!(&scoreboard.read().unwrap().player_score);
+        dbg!(&scoreboard.read().unwrap().tally);
     }
-    scoreboard.clone().read().unwrap().pick_move().expect("didn't pick a move")
-    
+    scoreboard.clone().read().unwrap().pick_move().expect("didn't pick a move").clone()
+}
+
+fn output_board_representation(board: &Board) {
+    let mut f = File::create("../server/debug/board.json").expect("Couldn't open file");
+
+    write!(
+        f,
+        "{}",
+        serde_json::to_string(&board).expect("couldn't serialize board")
+    )
+    .expect("couldn't write to disk");
 }

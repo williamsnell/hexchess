@@ -56,7 +56,7 @@ async fn handle_message(
         }
         OutgoingMessage::BoardState { mut board } => {
             if board.current_player == *current_color {
-                let intended_move = make_a_move(&mut board, 10000);
+                let intended_move = make_a_move(&mut board, 100_000);
                 let _ = socket.send(tungstenite::Message::Text(
                     serde_json::to_string(&IncomingMessage::RegisterMove {
                         user_id: user_id.to_string(),
