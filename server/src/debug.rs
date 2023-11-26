@@ -27,14 +27,15 @@ pub fn send_board(transmitter: &mpsc::UnboundedSender<Message>, board: Board) {
 }
 
 pub async fn debug_sender(tx: Arc<Mutex<mpsc::UnboundedSender<Message>>>, board: &'static str) {
-    let f = File::open(board).expect("Couldn't open file");
-    let reader = BufReader::new(f);
-    let board: Board = serde_json::from_reader(reader).expect("Invalid json format for the board");
     loop {
-        dbg!("here!");
-        let tx = tx.lock().await;
-        send_board(&tx, board.clone());
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        let f = File::open(board).expect("Couldn't open file");
+        let reader = BufReader::new(f);
+        let board: Result<Board, serde_json::Error>  = serde_json::from_reader(reader);
+
+        if let Ok(board) = board {
+            let tx = tx.lock().await;
+            send_board(&tx, board.clone());
+        }
     }
 }
 
@@ -49,12 +50,12 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket, board: &'static str
     tokio::task::spawn(async move {
         while let Some(message) = rx.next().await {
             ws_tx
-                .send(message)
-                .unwrap_or_else(|e| {
-                    eprintln!("websocket send error: {}", e);
-                })
-                .await;
-        }
+            .send(message)
+            .unwrap_or_else(|e| {
+                eprintln!("websocket send error: {}", e);
+            })
+            .await;
+    }
     });
 
     // initialize the session by sending a join success message
