@@ -71,7 +71,7 @@ pub fn rank_int_to_char(rank: u8) -> Option<char> {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Debug, Ord, PartialOrd, Clone, Copy)]
+#[derive(Eq, Hash, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct Hexagon {
     pub rank: u8,
     pub file: u8,
@@ -92,6 +92,12 @@ impl Hexagon {
             }),
             _ => None,
         }
+    }
+}
+
+impl fmt::Debug for Hexagon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.serialize(serde_json::value::Serializer).unwrap())
     }
 }
 
