@@ -6,7 +6,7 @@ use std::{fs, path::PathBuf};
 
 use crate::moves::{self, get_rank_length, KnightMoves, SlidingMoves};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub enum PieceType {
  Pawn,
     Rook,
@@ -392,7 +392,7 @@ pub fn get_valid_moves(
     (valid_moves, double_jump, promotion_moves)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Move {
     pub start_hex: Hexagon,
     pub final_hex: Hexagon,
