@@ -3,6 +3,7 @@ use std::{collections::HashMap, thread, time::Duration};
 use crate::bot_mind::*;
 pub mod bot_mind;
 pub mod random_bot;
+pub mod random_bot2;
 
 use api::OutgoingMessage;
 use hexchesscore::{Board, Color, Hexagon, Piece};
@@ -61,6 +62,8 @@ mod tests {
 
     use hexchesscore::{get_all_valid_moves, Board, Color, Hexagon, Piece};
     use random_bot::get_samples;
+
+    use crate::random_bot2::SearchTree;
 
     use super::*;
 
@@ -137,7 +140,7 @@ mod tests {
         let n = 1000;
         let num_moves = 20;
         let num_samples = 50;
-        let samples: Vec<Vec<usize>> = (0..n)
+        let samples: Vec<Vec<u16>> = (0..n)
             .map(|x| {
                 get_samples(
                     num_samples as f32,
@@ -146,8 +149,8 @@ mod tests {
             })
             .collect();
         for sample in &samples {
-            let total: usize = sample.iter().sum();
-            assert!(total == num_samples as usize);
+            let total: u16 = sample.iter().sum();
+            assert!(total == num_samples as u16);
         }
         let stats = samples.iter().fold(vec![0; num_moves], |acc, s| {
             acc.iter().zip(s).map(|(x, y)| x + y).collect()
@@ -162,11 +165,22 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_search_finds_checkmate() {
-        let mut board = Board::new();
-        board.occupied_squares.insert(
-            Hexagon::new("D2").unwrap(),
-            Piece {
+    fn test_new_tree_search() {
+        let mut board = Board::setup_default_board();
+        let mut tree = SearchTree::new();
+            for i in (0..1000){
+                random_bot2::tree_search(&mut board, &mut tree);
+                dbg!(i);
+            }
+            dbg!(tree);
+    }
+
+        #[test]
+        fn test_tree_search_finds_checkmate() {
+            let mut board = Board::new();
+            board.occupied_squares.insert(
+                Hexagon::new("D2").unwrap(),
+                Piece {
                 piece_type: hexchesscore::PieceType::Queen,
                 color: Color::Black,
             },
