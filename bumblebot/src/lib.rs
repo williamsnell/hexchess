@@ -168,11 +168,10 @@ mod tests {
     fn test_new_tree_search() {
         let mut board = Board::setup_default_board();
         let mut tree = SearchTree::new();
-            for i in (0..1000){
-                random_bot2::tree_search(&mut board, &mut tree);
-                dbg!(i);
+            for i in 0..100{
+                let out = random_bot2::tree_search(&mut board, &mut tree);
+                dbg!(out);
             }
-            dbg!(tree);
     }
 
         #[test]
