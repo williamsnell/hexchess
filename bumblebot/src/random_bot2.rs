@@ -119,7 +119,7 @@ fn calculate_bias(children: Vec<&Arc<RwLock<SearchTree>>>) -> Vec<f32> {
         .iter()
         .map(|x| {
             let x = x.read().unwrap();
-            (x.wins as f32) / (x.playouts as f32)
+            (x.wins as f32) / 4.0 / (x.playouts as f32)
                 + 1.414 * ((x.playouts as f32).log2() / (x.playouts as f32)).sqrt()
         })
         .collect()
@@ -142,15 +142,15 @@ pub fn tree_search(board: &mut Board, tree: Arc<RwLock<SearchTree>>) -> Option<i
     // while all the valid moves have nodes, pick one that doesn't
     // have at least 1 playout.
     if tree.read().unwrap().children.is_none() {
-        tree.write().unwrap().children = Some(
-            get_all_valid_moves(board)
-                .into_iter()
-                .map(|movement| (movement, Arc::new(RwLock::new(SearchTree::new()))))
-                .collect(),
-        );
+        let mut moves: Vec<(Move, Arc<RwLock<SearchTree>>)> = get_all_valid_moves(board)
+            .into_iter()
+            .map(|movement| (movement, Arc::new(RwLock::new(SearchTree::new()))))
+            .collect();
+        moves.shuffle(&mut thread_rng()); 
+        tree.write().unwrap().children = Some(moves);
     };
-    let mut captured_tree = tree.write().unwrap();
-    let children = captured_tree.children.as_mut().unwrap();
+    let captured_tree = tree.read().unwrap();
+    let children = captured_tree.children.as_ref().unwrap();
     // we hit an endgame position at this point
     if children.len() == 0 {
         let res = evaluate_endgame(board).unwrap();
@@ -159,7 +159,6 @@ pub fn tree_search(board: &mut Board, tree: Arc<RwLock<SearchTree>>) -> Option<i
     }
     // otherwise, randomize the moves so we don't always do the initial playout in the same
     // order
-    children.shuffle(&mut thread_rng());
     for (movement, child_tree) in children {
         let child_tree_read = child_tree.read().unwrap();
         // play all the nodes at this level at least once before
@@ -187,7 +186,13 @@ pub fn tree_search(board: &mut Board, tree: Arc<RwLock<SearchTree>>) -> Option<i
     // so pick one of the nodes randomly and recurse
     let (random_move, child_tree) = choose_move(&mut tree.write().unwrap()).unwrap();
     let (board, taken_piece) = apply_move(board, random_move);
-    let res = tree_search(board, child_tree);
+    let res = tree_search(board, child_tree.clone());
     revert_move(board, random_move, taken_piece);
+
+    // propagate the results
+    if let Some(score) = res {
+        tally_results(&mut child_tree.write().unwrap(), -score);
+    }
+
     return res;
 }
