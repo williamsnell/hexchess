@@ -3,6 +3,7 @@ use std::{collections::HashMap, thread, time::Duration};
 use crate::bot_mind::*;
 pub mod bot_mind;
 pub mod random_bot;
+pub mod random_bot2;
 
 use api::OutgoingMessage;
 use hexchesscore::{Board, Color, Hexagon, Piece};
@@ -61,6 +62,8 @@ mod tests {
 
     use hexchesscore::{get_all_valid_moves, Board, Color, Hexagon, Piece};
     use random_bot::get_samples;
+
+    use crate::random_bot2::SearchTree;
 
     use super::*;
 
@@ -162,11 +165,22 @@ mod tests {
     }
 
     #[test]
-    fn test_tree_search_finds_checkmate() {
-        let mut board = Board::new();
-        board.occupied_squares.insert(
-            Hexagon::new("D2").unwrap(),
-            Piece {
+    fn test_new_tree_search() {
+        let mut board = Board::setup_default_board();
+        let mut tree = SearchTree::new();
+            for i in (0..1000){
+                random_bot2::tree_search(&mut board, &mut tree);
+                dbg!(i);
+            }
+            dbg!(tree);
+    }
+
+        #[test]
+        fn test_tree_search_finds_checkmate() {
+            let mut board = Board::new();
+            board.occupied_squares.insert(
+                Hexagon::new("D2").unwrap(),
+                Piece {
                 piece_type: hexchesscore::PieceType::Queen,
                 color: Color::Black,
             },
