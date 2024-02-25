@@ -104,9 +104,8 @@ impl BitBoard {
         None
     }
 
-    pub fn invert_sub_board_at_hex(sub_board: &SubBoard, hex: Hexagon) -> SubBoard {
-        let mask = BitBoard::bit_mask_from_hexagon(hex);
-        sub_board ^ mask
+    pub fn get_mask_at_hex(hex: Hexagon) -> SubBoard {
+        BitBoard::bit_mask_from_hexagon(hex)
     }
 
     // Implicitly assumes the piece is in fact at this position.
@@ -114,7 +113,22 @@ impl BitBoard {
     // a piece at the specified position.
     pub fn insert_piece(&mut self, piece: Piece, hex: Hexagon) {
         let sub_board = self.get_subboard(piece);
-        self.set_subboard(piece, BitBoard::invert_sub_board_at_hex(sub_board, hex));
+        self.set_subboard(piece, sub_board ^ BitBoard::get_mask_at_hex(hex));
+
+        // remove any enemy pieces that might have been in this position
+        for piece_type in [
+            PieceType::King,
+            PieceType::Queen,
+            PieceType::Rook,
+            PieceType::Bishop,
+            PieceType::Knight,
+            PieceType::Pawn,
+        ] {
+            let color = piece.color.invert();
+            let subboard = self.get_subboard(Piece{piece_type, color});
+            let mask = BitBoard::get_mask_at_hex(hex);
+            self.set_subboard(piece, (!*subboard) & mask);
+        }
     }
 
     pub fn from_board(board: &Board) -> Self {
