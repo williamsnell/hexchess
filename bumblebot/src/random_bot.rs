@@ -9,9 +9,9 @@ use std::{
     thread::{Thread, current, sleep}, time::{Instant, Duration}, fs::File, io::Write,
 };
 
-const EXPLORATION_PARAMETER: f32 = 0.01;
+const EXPLORATION_PARAMETER: f32 = 1.414;
 
-const SPAWN_THREAD_CUTOFF: u16 = 0;
+const EXPAND_TREE_CUTOFF: u16 = 100;
 
 use hexchesscore::{
     apply_move, check_for_mates, get_all_valid_moves, revert_move, Board, Color, Move,
@@ -61,8 +61,8 @@ impl ScoreBoard {
                 .expect("Scoreboard should exist, but doesn't"),
         )
     }
-    pub fn update_scores(&mut self, num_samples: u16) {
-        self.tally += num_samples;
+    pub fn update_scores(&mut self) {
+        self.tally = self.children.values().fold(0, |acc, e| acc + e.read().unwrap().tally);
         // opponent becomes player and vice versa, and their score is propagated
         // upwards from the sub simulations
         self.player_score = self
@@ -73,14 +73,15 @@ impl ScoreBoard {
         .children
         .values()
         .fold(0, |acc, e| acc + e.read().unwrap().player_score);
+
     }
     pub fn calculate_bias(&self) -> HashMap<Move, f32> {
         self.children
             .iter()
             .map(|(m, x)| {
                 let y = x.read().unwrap();
-                (m.clone(), y.player_score as f32 / (y.tally as f32)
-                    + EXPLORATION_PARAMETER * ((self.tally as f32).log2() / y.tally as f32).sqrt())
+                (m.clone(), y.player_score as f32 / 4.0 / (y.tally as f32)
+                    + EXPLORATION_PARAMETER * ((self.tally as f32).log(2.71828) / y.tally as f32).sqrt())
             })
             .collect()
     }
@@ -131,12 +132,11 @@ pub fn get_samples(num_samples: f32, bias: HashMap<Move, f32>) -> HashMap<Move, 
             }
         }
         else {
-            // I assume at this point that the order of the moves remains constant when I do the 
-            // different iterations within this function
-            dbg!(remainder_bias.keys());
-
             let mut choosable_moves = Vec::new();
             let mut biases = Vec::new();
+
+            // We need to ensure the move we think we're choosing with the sampler is in fact
+            // the correct move
 
             for (key, val) in remainder_bias {
                 choosable_moves.push(key);
@@ -148,8 +148,7 @@ pub fn get_samples(num_samples: f32, bias: HashMap<Move, f32>) -> HashMap<Move, 
     
             while remainder > 0 {
                 let allocated = (thread_rng().gen_range(1..remainder + 1) + (DIVISOR - 1)) / DIVISOR;
-                dbg!(choices.keys());
-                // 
+
                 let chosen_move: Move = choosable_moves[index.sample(&mut rng)];
                 *choices.get_mut(&chosen_move).unwrap() += allocated;
     
@@ -177,7 +176,6 @@ pub fn tree_search(
     max_depth: u16,
 ) {
     let moves = get_all_valid_moves(board);
-    let num_moves: u16 = moves.len() as u16;
 
     let player_color = board.current_player;
     
@@ -192,49 +190,53 @@ pub fn tree_search(
     }
     let samples: HashMap<Move, u16> = get_samples(num_searches as f32, bias);
 
-    dbg!(&scoreboard);
-    dbg!(&samples);
-
     let _: Vec<()> = moves
         .par_iter()
         .map(|movement| {
             let sample = samples.get(movement).unwrap();
             let mut board = board.clone();
-            let (board, taken_piece) = apply_move(&mut board, *movement);
+            let (board, _) = apply_move(&mut board, *movement);
 
-            let mut sub_scoreboard = scoreboard.write().unwrap().retrieve_scoreboard(movement);
+            let sub_scoreboard = scoreboard.write().unwrap().retrieve_scoreboard(movement);
 
-            let _: Vec<()> = (0..*sample).into_par_iter().map(| x | {
-                {
-                    let mut board = &mut (board.clone());
-                    let mut depth = max_depth;
-                    
-                    while depth > 0 {
-                        let moves = get_all_valid_moves(board);
-                        if moves.len() == 0 {
-                            break;
-                        }
-                        let rand_move = moves.choose(&mut rand::thread_rng()).unwrap();
-                        let (a, b) = apply_move(board, *rand_move);
-                        board = a;
-                        depth -= 1;
-                    };
-                    // we have a game ending position
-                    let end_type = check_for_mates(& mut board);
-    
-                    if let Some(end_type) = end_type {
-                        let score: u16 = match end_type {
-                            hexchesscore::Mate::Checkmate => 4,
-                            hexchesscore::Mate::Stalemate => 3, // stalemate is 3/4 of a win
+            if *sample >= EXPAND_TREE_CUTOFF {
+                // expand the tree to this level
+                tree_search(board, *sample, sub_scoreboard.clone(), max_depth - 1);
+
+
+            } else {
+                let _: Vec<()> = (0..*sample).into_par_iter().map(| _ | {
+                    {
+                        let mut board = &mut (board.clone());
+                        let mut depth = max_depth;
+                        
+                        while depth > 0 {
+                            let moves = get_all_valid_moves(board);
+                            if moves.len() == 0 {
+                                break;
+                            }
+                            let rand_move = moves.choose(&mut rand::thread_rng()).unwrap();
+                            let (a, b) = apply_move(board, *rand_move);
+                            board = a;
+                            depth -= 1;
                         };
-                        if board.current_player == player_color {
-                            sub_scoreboard.write().unwrap().opponent_score += score;
-                        } else {
-                            sub_scoreboard.write().unwrap().player_score += score;
+                        // we have a game ending position
+                        let end_type = check_for_mates(& mut board);
+        
+                        if let Some(end_type) = end_type {
+                            let score: u16 = match end_type {
+                                hexchesscore::Mate::Checkmate => 4,
+                                hexchesscore::Mate::Stalemate => 3, // stalemate is 3/4 of a win
+                            };
+                            if board.current_player == player_color {
+                                sub_scoreboard.write().unwrap().opponent_score += score;
+                            } else {
+                                sub_scoreboard.write().unwrap().player_score += score;
+                            }
                         }
                     }
-                }
-            }).collect();
+                }).collect();
+            }
 
             sub_scoreboard.write().unwrap().tally += sample;
         })
@@ -245,7 +247,7 @@ pub fn tree_search(
 
     // for some reason this call screws everything up!
 
-    // scoreboard.write().unwrap().update_scores(num_searches);
+    scoreboard.write().unwrap().update_scores();
 }
 
 
@@ -256,8 +258,9 @@ pub fn make_a_move(board: &mut Board, timeout_ms: u64) -> Move {
     let scoreboard = Arc::new(RwLock::new(ScoreBoard::new()));
 
     while Instant::now() < end {
-        tree_search(board, 1000, scoreboard.clone(), 3000);
+        tree_search(board, 50, scoreboard.clone(), 800);
         dbg!(&scoreboard.read().unwrap().player_score);
+        dbg!(board.current_player);
         dbg!(&scoreboard.read().unwrap().tally);
         dbg!(&scoreboard.read().unwrap().pick_move());
     }
