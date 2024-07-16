@@ -142,7 +142,7 @@ async fn main() {
 
     if args.len() > 1 {
         let (mut socket, response) =
-            connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap()).expect("Can't connect");
+            connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap().as_str()).expect("Can't connect");
 
         let user_id = Uuid::new_v4();
 
