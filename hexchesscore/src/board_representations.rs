@@ -193,7 +193,7 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Write, path::PathBuf};
+    use std::{fs::File, io::Write};
 
     use super::*;
     use pretty_assertions::assert_eq;

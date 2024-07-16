@@ -2,7 +2,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::fmt;
-use std::{fs, path::PathBuf};
+
 
 use crate::moves::{self, get_rank_length, KnightMoves, SlidingMoves};
 
@@ -462,7 +462,7 @@ pub fn check_for_mates(board: &mut Board) -> Option<Mate> {
         .find(|(_, piece)| piece.piece_type == PieceType::King)
         .map(|(hex, _)| hex).expect("couldn't find the king");
 
-    if let Some(attacking_pieces) =
+    if let Some(_attacking_pieces) =
         get_attacking_pieces(current_player_color.invert(), board, &king_hex)
     {
         // get_attacking_pieces will only return Some if there are attacking pieces. Hence, 
