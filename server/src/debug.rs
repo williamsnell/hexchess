@@ -1,24 +1,24 @@
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{env, net::TcpStream, thread, time::Duration};
 
-use futures::{channel::mpsc::UnboundedSender, SinkExt, StreamExt, TryFutureExt};
-use hexchesscore::{Board, Color};
-use serde::Deserialize;
+
+use futures::{SinkExt, StreamExt, TryFutureExt};
+use hexchesscore::{Board};
+
 use tokio::sync::Mutex;
 use tokio::{self, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use url::Url;
+
 use warp::ws::Message;
 use warp::Filter;
 
-use tungstenite::{connect, stream::MaybeTlsStream, WebSocket};
+
 use uuid::{self, Uuid};
 
 use std::io::BufReader;
 
-use api::{IncomingMessage, OutgoingMessage, PlayerColor};
+use api::{OutgoingMessage, PlayerColor};
 
 pub fn send_board(transmitter: &mpsc::UnboundedSender<Message>, board: Board) {
     let _result = transmitter.send(Message::text(
@@ -40,7 +40,7 @@ pub async fn debug_sender(tx: Arc<Mutex<mpsc::UnboundedSender<Message>>>, board:
 }
 
 async fn handle_websocket_async(socket: warp::ws::WebSocket, board: &'static str) {
-    let (mut ws_tx, mut ws_rx) = socket.split();
+    let (mut ws_tx, _ws_rx) = socket.split();
 
     let (tx, rx) = mpsc::unbounded_channel();
     // turn the normal receiver into a stream
@@ -74,10 +74,10 @@ async fn handle_websocket_async(socket: warp::ws::WebSocket, board: &'static str
 
     let tx = Arc::new(Mutex::new(tx));
 
-    tokio::task::spawn(debug_sender(tx.clone(), board.clone()));
+    tokio::task::spawn(debug_sender(tx.clone(), board));
 }
 
-pub async fn spawn_debug_server(file_to_watch: PathBuf) {
+pub async fn spawn_debug_server(_file_to_watch: PathBuf) {
     let websocket = warp::path("ws").and(warp::ws()).map(|ws: warp::ws::Ws| {
         ws.on_upgrade(|socket| handle_websocket_async(socket, "./debug/board.json"))
     });

@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use warp::ws::Message;
 use hexchesscore::{Board, Color};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+
 use api::PlayerColor;
 
 #[derive(Debug, Clone, Copy)]
@@ -247,7 +247,7 @@ impl SessionHandler {
 }
 
 // TODO this is a really hacky way of killing bots for the moment
-pub fn send_resignation(initiating_player: PlayerID, channels: &HashMap<PlayerID, tokio::sync::mpsc::UnboundedSender<Message>>) {
+pub fn send_resignation(_initiating_player: PlayerID, channels: &HashMap<PlayerID, tokio::sync::mpsc::UnboundedSender<Message>>) {
     for channel in channels.values() {
         let _ = channel.send(warp::ws::Message::text("{{\"op\"= \"GameEnded\"}}"));
     }
