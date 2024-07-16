@@ -1,5 +1,6 @@
 #! /bin/bash
 
+npm install
 npm run build
 # kill the existing process
 killall -9 node
