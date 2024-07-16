@@ -113,7 +113,7 @@ fn calculate_bias(children: Vec<&SearchTree>) -> Vec<f32> {
 fn choose_move(tree: &mut SearchTree) -> Option<&mut (Move, SearchTree)> {
     // for a placeholder, just pick the first move
     let children: &mut Vec<(Move, SearchTree)> = tree.children.as_mut().unwrap();
-    let bias = calculate_bias(children.iter().map(|(x, y)| y).collect());
+    let bias = calculate_bias(children.iter().map(|(_x, y)| y).collect());
 
     let mut rng = thread_rng();
     let index = WeightedIndex::new(bias).unwrap();

@@ -1,11 +1,9 @@
 use api::OutgoingMessage;
 use std::{
-    cmp::{max, min},
-    collections::{vec_deque, VecDeque},
-    thread::{self, current},
+    collections::{VecDeque},
     time::Duration,
 };
-use tokio::{self, sync::mpsc, task::yield_now};
+use tokio::{self, sync::mpsc};
 use std::time::Instant;
 use warp::ws::Message;
 
@@ -61,7 +59,7 @@ pub fn alpha_beta_prune(
     board: &mut Board,
     depth: i8,
     mut alpha: f32,
-    mut beta: f32,
+    beta: f32,
     timeout: Instant
     // tx: &mpsc::UnboundedSender<Message>
 ) -> Option<f32> {
@@ -113,7 +111,7 @@ pub fn alpha_beta_prune_with_best_move(
     depth: i8,
     mut best_move: Move,
     mut alpha: f32,
-    mut beta: f32,
+    beta: f32,
     timeout: Instant,
 ) -> Option<(f32, Move)> {
     let mut rating;

@@ -1,15 +1,15 @@
-use std::{collections::HashMap, thread, time::Duration};
 
-use crate::bot_mind::*;
+
+
 pub mod bot_mind;
 pub mod random_bot;
 pub mod random_bot2;
 
-use api::OutgoingMessage;
+
 use hexchesscore::{Board, Color, Hexagon, Piece};
-use tokio::sync::mpsc;
-use uuid::Uuid;
-use warp::ws::Message;
+
+
+
 
 pub fn setup_test_boards() -> (Board, Board) {
     let mut board = Board::setup_default_board();

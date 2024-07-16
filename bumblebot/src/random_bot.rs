@@ -1,12 +1,10 @@
-use core::num;
+
 use rand::{thread_rng, Rng, seq::SliceRandom};
 use rand_distr::{Distribution, WeightedIndex};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    os::unix::thread,
-    sync::{Arc, Mutex, RwLock},
-    thread::{Thread, current, sleep}, time::{Instant, Duration}, fs::File, io::Write,
+    sync::{Arc, RwLock}, time::{Instant, Duration}, fs::File, io::Write,
 };
 
 const EXPLORATION_PARAMETER: f32 = 1.414;
@@ -14,7 +12,7 @@ const EXPLORATION_PARAMETER: f32 = 1.414;
 const EXPAND_TREE_CUTOFF: u16 = 100;
 
 use hexchesscore::{
-    apply_move, check_for_mates, get_all_valid_moves, revert_move, Board, Color, Move,
+    apply_move, check_for_mates, get_all_valid_moves, Board, Move,
 };
 
 // batched monte-carlo tree-search
@@ -127,7 +125,7 @@ pub fn get_samples(num_samples: f32, bias: HashMap<Move, f32>) -> HashMap<Move, 
     // now, divide up the remainder by the bias
     if remainder > 0 {
         if remainder_bias.len() == 1 {
-            for (m, choice) in choices.clone() {
+            for (m, _choice) in choices.clone() {
                 *choices.get_mut(&m).unwrap() += remainder;
             }
         }
@@ -216,7 +214,7 @@ pub fn tree_search(
                                 break;
                             }
                             let rand_move = moves.choose(&mut rand::thread_rng()).unwrap();
-                            let (a, b) = apply_move(board, *rand_move);
+                            let (a, _b) = apply_move(board, *rand_move);
                             board = a;
                             depth -= 1;
                         };

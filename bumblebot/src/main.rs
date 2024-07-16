@@ -1,12 +1,10 @@
 use std::{
     env,
     net::TcpStream,
-    sync::{Arc, Mutex, RwLock},
-    thread::{self, sleep},
-    time::{Duration, Instant},
+    thread::{self},
 };
 
-use futures::{channel::mpsc::UnboundedSender, SinkExt, StreamExt, TryFutureExt};
+use futures::{SinkExt, StreamExt, TryFutureExt};
 use hexchesscore::{Board, Color};
 use tokio::{self, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -20,8 +18,8 @@ use uuid::{self, Uuid};
 use api::{IncomingMessage, OutgoingMessage, PlayerColor};
 
 use bumblebot::{
-    bot_mind::{alpha_beta_prune, iterative_deepening},
-    random_bot::{tree_search, ScoreBoard, make_a_move},
+    bot_mind::{iterative_deepening},
+    random_bot::{make_a_move},
     setup_test_boards,
 };
 
@@ -43,7 +41,7 @@ async fn handle_message(
 ) {
     let decoded: OutgoingMessage = serde_json::from_str(&message.into_text().unwrap()).unwrap();
     match decoded {
-        OutgoingMessage::JoinGameSuccess { color, session } => {
+        OutgoingMessage::JoinGameSuccess { color, session: _ } => {
             *current_color = match_player_color(color);
         }
         OutgoingMessage::OpponentJoined { session: _ } => {
@@ -73,7 +71,7 @@ async fn handle_message(
     }
 }
 
-pub fn spawn_bot(tx: &mpsc::UnboundedSender<Message>) {
+pub fn spawn_bot(_tx: &mpsc::UnboundedSender<Message>) {
     let (mut board, mut board2) = setup_test_boards();
     board.current_player = board.current_player.invert();
     iterative_deepening(&mut board2, 3, 1000);
@@ -85,7 +83,7 @@ pub fn spawn_bot(tx: &mpsc::UnboundedSender<Message>) {
 }
 
 async fn handle_websocket_async(socket: warp::ws::WebSocket) {
-    let (mut ws_tx, mut ws_rx) = socket.split();
+    let (mut ws_tx, _ws_rx) = socket.split();
 
     let (tx, rx) = mpsc::unbounded_channel();
     // turn the normal receiver into a stream
@@ -141,7 +139,7 @@ async fn main() {
     dbg!(&args);
 
     if args.len() > 1 {
-        let (mut socket, response) =
+        let (mut socket, _response) =
             connect(Url::parse("ws://127.0.0.1:7878/ws").unwrap().as_str()).expect("Can't connect");
 
         let user_id = Uuid::new_v4();
