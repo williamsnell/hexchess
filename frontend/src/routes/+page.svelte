@@ -181,7 +181,7 @@
 		if (browser) {
 			const BACKEND_URL =
 				window.location.protocol == 'http:'
-					? 'ws://127.0.0.1:7878/ws'
+					? 'ws://127.0.0.1:80/ws'
 					: 'wss://playhexchess.com:443/ws';
 			const socket = new WebSocket(BACKEND_URL);
 			let sender = (message: string | ArrayBufferLike | Blob | ArrayBufferView) => {
