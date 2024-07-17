@@ -18,8 +18,8 @@ use uuid::{self, Uuid};
 use api::{IncomingMessage, OutgoingMessage, PlayerColor};
 
 use bumblebot::{
-    bot_mind::{iterative_deepening},
-    random_bot::{make_a_move},
+    bot_mind::iterative_deepening,
+    bot_mind::make_a_move,
     setup_test_boards,
 };
 
